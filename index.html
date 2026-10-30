@@ -1,0 +1,1938 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨平台行銷戰情室</title>
+    <!-- typography 外掛提供 prose 樣式，讓 AI 報告的 Markdown 標題與清單正常顯示 -->
+    <script src="https://cdn.tailwindcss.com/3.4.5?plugins=typography"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
+                        meta: '#1877F2',
+                        tiktok: '#000000',
+                        yt: '#FF0000'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .metric-value { transition: color 0.3s ease; }
+        .btn-secondary { display: inline-flex; align-items: center; gap: .4rem; font-size: .75rem; font-weight: 500; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: .5rem; background: #fff; color: #374151; }
+        .btn-secondary:hover { background: #f9fafb; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col md:flex-row">
+
+    <!-- 側邊控制台 -->
+    <aside class="w-full md:w-80 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col shadow-sm z-10">
+        <div class="p-6 border-b border-gray-100 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chart-pie text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-gray-900 text-lg leading-tight">Nexus Analytics</h1>
+                <p class="text-xs text-gray-500">多品牌社群戰情室</p>
+            </div>
+        </div>
+
+        <div class="p-6 flex-1 overflow-y-auto">
+            <!-- 頁面切換 -->
+            <nav class="mb-6 grid grid-cols-2 gap-2">
+                <button data-nav="dashboard" onclick="showView('dashboard')" class="flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors"><i class="fa-solid fa-chart-line"></i> 儀表板</button>
+                <button data-nav="editor" onclick="showView('editor')" class="flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors"><i class="fa-solid fa-table-cells"></i> 填寫資料</button>
+            </nav>
+
+            <!-- 品牌切換器 -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-900 mb-2 uppercase tracking-wider">
+                    <i class="fa-solid fa-store mr-1 text-gray-500"></i> 切換品牌
+                </label>
+                <select id="brandSelector" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 outline-none transition-colors cursor-pointer hover:bg-white">
+                    <!-- Options populated by JS -->
+                </select>
+            </div>
+
+            <!-- 開啟資料檔 (CSV / JSON) -->
+            <div class="mb-4 p-4 bg-brand-50 rounded-lg border border-brand-100">
+                <label class="block text-sm font-semibold text-brand-900 mb-2">
+                    <i class="fa-solid fa-folder-open mr-1"></i> 開啟資料檔
+                </label>
+                <button onclick="openDataFiles()" class="w-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold py-2 px-3 rounded-md transition-colors">選擇 CSV / JSON 檔</button>
+                <input type="file" id="csvFileInput" accept=".csv,.json" multiple class="hidden">
+                <p class="text-xs text-brand-700 mt-2">一個品牌一個檔案，可一次選多個。也支援舊版多品牌 CSV，以及 Excel 存的 Big5 編碼 CSV。</p>
+            </div>
+
+            <!-- 設定 -->
+            <button onclick="openSettings()" class="w-full mb-6 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm">
+                <i class="fa-solid fa-gear"></i> 設定（KPI 標準與 AI 提示詞）
+            </button>
+
+            <!-- AI 自動化提案與免 API 備案 -->
+            <div class="mt-6 pt-6 border-t border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-900 mb-3 uppercase tracking-wider">AI 決策助手</h3>
+                
+                <!-- Gemini 模型與 API Key (兩者都必填；模型下架時在這裡換新名稱即可) -->
+                <div class="mb-2">
+                    <label for="customApiKey" class="block text-xs text-gray-500 mb-1">Gemini API Key（必填）</label>
+                    <input type="password" id="customApiKey" placeholder="貼上 Google AI Studio 的 API Key" autocomplete="off" class="w-full bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg p-2 outline-none focus:border-indigo-500">
+                    <label class="flex items-center gap-1.5 text-[11px] text-gray-500 mt-1.5 cursor-pointer">
+                        <input type="checkbox" id="rememberApiKey" class="rounded"> 記住 Key（只存在這台電腦的瀏覽器）
+                    </label>
+                </div>
+                <div class="mb-3">
+                    <label for="geminiModel" class="block text-xs text-gray-500 mb-1">Gemini 模型（必填）</label>
+                    <div class="flex gap-1.5">
+                        <input id="geminiModel" placeholder="例如 gemini-3-flash-preview" autocomplete="off" class="flex-1 min-w-0 bg-gray-50 border border-gray-200 text-gray-800 text-xs rounded-lg p-2 outline-none focus:border-indigo-500">
+                        <button onclick="fetchGeminiModels()" id="fetchModelsBtn" title="用目前的 API Key 查詢可用的模型" class="flex-shrink-0 text-xs px-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">查詢可用</button>
+                    </div>
+                    <select id="geminiModelSelect" class="hidden w-full mt-1.5 bg-white border border-gray-300 text-gray-800 text-xs rounded-lg p-2 outline-none focus:border-indigo-500"></select>
+                    <p id="modelHint" class="text-[11px] text-gray-400 mt-1">模型失效時，按「查詢可用」從清單挑一個新的。</p>
+                </div>
+
+                <!-- 目前選取的報告類型 (於右側 AI 區塊切換) -->
+                <div class="mb-3 p-3 bg-indigo-50/60 rounded-lg border border-indigo-100 space-y-2">
+                    <label class="flex items-center justify-between gap-2 text-xs text-gray-600">報告類型
+                        <select id="sideReportType" onchange="switchReport(this.value)" class="border border-gray-300 rounded-md text-xs px-2 py-1.5 bg-white">
+                            <option value="monthly">近 2 月比較報告</option>
+                            <option value="overall">整體營運報告</option>
+                        </select>
+                    </label>
+                    <div id="reportControlsSide" class="flex flex-col items-end gap-2"></div>
+                    <p id="reportScopeSide" class="text-xs text-indigo-700"></p>
+                </div>
+
+                <!-- 產出按鈕 (API) -->
+                <button id="generateAiBtn" onclick="generateAIInsights()" class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 mb-2.5 text-sm">
+                    <i class="fa-solid fa-robot"></i> 產出 AI 報告 (API)
+                </button>
+
+                <!-- 免 API 備案：一鍵複製 Prompt -->
+                <button id="copyPromptBtn" onclick="copyAiPrompt()" class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium py-2 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-xs">
+                    <i class="fa-regular fa-copy"></i> 複製 AI 診斷指令 (免 API 備案)
+                </button>
+                <p id="copyFeedback" class="text-xs text-emerald-600 font-medium mt-1.5 text-center hidden">✅ 已複製！可直接貼至 ChatGPT / Gemini</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主畫布 -->
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto min-w-0">
+      <div id="dashboardView">
+        <header class="mb-6 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+            <div>
+                <h2 id="dashboardTitle" class="text-2xl font-bold text-gray-900">品牌行銷成效總覽</h2>
+                <p class="text-sm text-gray-500 mt-1">最新結算月份：<span id="currentMonthText" class="font-bold text-brand-600">讀取中...</span></p>
+            </div>
+            <div class="flex gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"><i class="fa-brands fa-meta"></i> Meta</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-800"><i class="fa-brands fa-tiktok"></i> TikTok</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="fa-brands fa-youtube"></i> YouTube</span>
+            </div>
+        </header>
+
+        <!-- 數據完整性警示橫幅 (當偵測到空值時自動顯示) -->
+        <div id="dataCompletenessBanner" class="hidden mb-6 p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800 flex items-start gap-3 shadow-sm">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-lg"></i>
+            <div class="text-xs leading-relaxed">
+                <span class="font-bold text-sm block mb-0.5">偵測到部分平台或月份數據未填寫（資料不完整）</span>
+                <span id="missingDataDetails">系統已自動啟動「防呆容錯模式」：卡片將自動切換為有數據的替代指標，折線圖將自動跨過斷層，AI 亦只會針對現有數據進行診斷。</span>
+            </div>
+        </div>
+
+        <!-- 四大核心指標卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- 1. 本月社群總流量 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-users-viewfinder text-5xl text-brand-500"></i></div>
+                <h3 class="text-sm font-semibold text-gray-800 mb-1">1. 本月社群總流量</h3>
+                <p class="text-xs text-gray-400 mb-3">Meta + TikTok 總觸及/觀看數</p>
+                <div class="text-3xl font-bold text-gray-900 mt-auto" id="kpiTraffic">0</div>
+                <div class="mt-2 text-xs text-brand-600 font-medium" id="kpiTrafficDetail">計算中...</div>
+            </div>
+
+            <!-- 2. 黃金互動率 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-heart-circle-check text-5xl text-pink-500"></i></div>
+                <h3 class="text-sm font-semibold text-gray-800 mb-1">2. 黃金互動率</h3>
+                <p class="text-xs text-gray-400 mb-3">留言+分享+收藏的綜合指標</p>
+                <div class="text-3xl font-bold text-gray-900 mt-auto" id="kpiEngagement">0%</div>
+                <div class="mt-2 text-xs text-pink-600 font-medium" id="kpiEngagementDetail">黃金互動總數: 0</div>
+            </div>
+
+            <!-- 3. 短影音平均完播率 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-stopwatch text-5xl text-tiktok"></i></div>
+                <h3 class="text-sm font-semibold text-gray-800 mb-1">3. 短影音平均完播率</h3>
+                <p class="text-xs text-gray-400 mb-3">評估影片腳本好壞的關鍵</p>
+                <div class="text-3xl font-bold text-gray-900 mt-auto" id="kpiRetention">0%</div>
+                <div class="mt-2 text-xs text-gray-600 font-medium" id="kpiRetentionDetail">TikTok 完播與 Meta 續看</div>
+            </div>
+
+            <!-- 4. 單次引流成本 / 點擊成本 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-hand-pointer text-5xl text-emerald-500"></i></div>
+                <h3 class="text-sm font-semibold text-gray-800 mb-1">4. 單次引流 / 點擊成本</h3>
+                <p class="text-xs text-gray-400 mb-3">花了多少力氣才把一個人騙去官網</p>
+                <div class="text-3xl font-bold text-gray-900 mt-auto" id="kpiCpc">NT$0</div>
+                <div class="mt-2 text-xs text-emerald-600 font-medium" id="kpiCpcWinner">最佳導流平台: -</div>
+            </div>
+        </div>
+
+        <!-- 各平台詳細數據：每個指標顯示數值、與前月比較、良好/普通/待加強 (標準可在「設定」修改) -->
+        <div class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                <h3 class="font-bold text-gray-900">各平台詳細數據 <span class="text-xs font-normal text-gray-400 ml-1">最新月份表現，標籤標準可在「設定」修改</span></h3>
+                <div id="detailTabs" class="flex flex-wrap gap-1.5"></div>
+            </div>
+            <div id="detailCards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+        </div>
+
+        <!-- 圖表區 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- 折線圖：CPA 轉換成本趨勢 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-900">跨平台獲客成本趨勢 (CPA)</h3>
+                    <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">Meta vs TikTok</span>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="cpaChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 長條圖：點擊率比較 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-900">本月素材吸睛度比較 (CTR)</h3>
+                    <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">各平台點擊率</span>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="ctrChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI 洞察區塊 -->
+        <div class="bg-gradient-to-br from-indigo-50 to-white rounded-xl shadow-sm border border-indigo-100 p-6 mb-10">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> AI 決策洞察 (五大模組診斷)
+                </h3>
+                <!-- 報告類型切換：左側按鈕會產出/複製目前選取的報告 -->
+                <div class="inline-flex self-start md:self-auto bg-white border border-indigo-100 rounded-lg p-1 text-sm">
+                    <button data-report-tab="monthly" onclick="switchReport('monthly')" class="report-tab px-3 py-1.5 rounded-md font-medium transition-colors">近 2 月比較報告</button>
+                    <button data-report-tab="overall" onclick="switchReport('overall')" class="report-tab px-3 py-1.5 rounded-md font-medium transition-colors">整體營運報告</button>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+                <div id="reportControlsMain" class="flex flex-wrap items-center gap-3"></div>
+                <p id="reportScopeText" class="text-xs text-indigo-700"></p>
+            </div>
+            <div id="aiOutput-monthly" data-report="monthly" class="ai-output prose prose-sm prose-indigo max-w-none prose-headings:text-indigo-900 prose-h2:mt-6 prose-h3:mt-4 prose-li:my-0.5 text-gray-700 bg-white/80 p-5 rounded-lg border border-indigo-50 min-h-[120px]"></div>
+            <div id="aiOutput-overall" data-report="overall" class="ai-output hidden prose prose-sm prose-indigo max-w-none prose-headings:text-indigo-900 prose-h2:mt-6 prose-h3:mt-4 prose-li:my-0.5 text-gray-700 bg-white/80 p-5 rounded-lg border border-indigo-50 min-h-[120px]"></div>
+        </div>
+      </div>
+
+      <!-- 填表畫面：指標為列、月份為欄，一個品牌一張表 -->
+      <div id="editorView" class="hidden">
+        <header class="mb-5 flex flex-col md:flex-row md:justify-between md:items-end gap-3">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">填寫資料：<span id="editorBrandName"></span></h2>
+                <p class="text-sm text-gray-500 mt-1">於左側切換品牌。百分比只填數字（3.5 代表 3.5%），時間填「分:秒」，空白代表未填寫。按 Enter 移到下一格。</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="addBrand()" class="btn-secondary"><i class="fa-solid fa-plus"></i> 新增品牌</button>
+                <button onclick="renameBrand()" class="btn-secondary"><i class="fa-solid fa-pen"></i> 重新命名</button>
+                <button onclick="deleteBrand()" class="btn-secondary text-red-600"><i class="fa-solid fa-trash"></i> 刪除品牌</button>
+                <button id="clearDemoBtn" onclick="clearDemoBrands()" class="btn-secondary text-red-600"><i class="fa-solid fa-broom"></i> 清除所有範例品牌</button>
+                <button onclick="downloadTemplateCSV()" class="btn-secondary"><i class="fa-solid fa-file-arrow-down"></i> 空白範本</button>
+            </div>
+        </header>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div id="editorTabs" class="flex flex-wrap gap-1.5"></div>
+                <button onclick="addMonth()" class="btn-secondary"><i class="fa-solid fa-calendar-plus"></i> 新增月份</button>
+            </div>
+            <div id="editorTable" class="overflow-x-auto"></div>
+            <div class="flex flex-col md:flex-row md:items-center gap-3 mt-4 pt-4 border-t border-gray-100">
+                <p id="editorStatus" class="text-xs text-gray-500 flex-1"></p>
+                <div class="flex gap-2">
+                    <button onclick="downloadBrandCSV()" class="btn-secondary"><i class="fa-solid fa-file-csv"></i> 下載 CSV</button>
+                    <button onclick="saveBrandJSON()" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-2 px-3 rounded-lg"><i class="fa-solid fa-floppy-disk"></i> 存成 JSON</button>
+                </div>
+            </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 設定視窗：KPI 標準與 AI 提示詞 -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4" onclick="if (event.target === this) closeSettings()">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" role="dialog" aria-label="設定">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                <div class="flex gap-1.5">
+                    <button data-settings-tab="kpi" onclick="switchSettingsTab('kpi')">KPI 標準</button>
+                    <button data-settings-tab="prompts" onclick="switchSettingsTab('prompts')">AI 提示詞</button>
+                </div>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600" aria-label="關閉"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+                <div id="settingsKpiPane">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="text-sm text-gray-600">套用到</span>
+                        <select id="settingsScope" onchange="settingsScope = this.value; renderSettings()" class="border border-gray-300 rounded-lg text-sm px-2 py-1.5"></select>
+                    </div>
+                    <p id="settingsScopeNote" class="text-xs text-gray-500 mb-2"></p>
+                    <div id="kpiTable" class="overflow-x-auto"></div>
+                </div>
+                <div id="settingsPromptPane" class="hidden space-y-4">
+                    <p class="text-xs text-gray-500 leading-relaxed">可用標記：<code>{品牌}</code> <code>{分析範圍}</code> <code>{第一個月}</code> <code>{前月}</code> <code>{本月}</code> <code>{月數}</code> <code>{歷史數據}</code>，送出時會自動換成實際內容（近 2 月比較報告中 <code>{前月}</code> 是選擇的比較月份）。若提示詞中沒有 <code>{歷史數據}</code>，數據會自動附在最後。</p>
+                    <div>
+                        <label for="promptMonthly" class="block text-sm font-semibold text-gray-800 mb-1">近 2 月比較報告</label>
+                        <textarea id="promptMonthly" rows="12" oninput="settingsDraft.prompts.monthly = this.value" class="w-full border border-gray-300 rounded-lg p-3 text-xs font-mono leading-relaxed outline-none focus:border-indigo-500"></textarea>
+                    </div>
+                    <div>
+                        <label for="promptOverall" class="block text-sm font-semibold text-gray-800 mb-1">整體營運報告</label>
+                        <textarea id="promptOverall" rows="12" oninput="settingsDraft.prompts.overall = this.value" class="w-full border border-gray-300 rounded-lg p-3 text-xs font-mono leading-relaxed outline-none focus:border-indigo-500"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                <button id="settingsResetBtn" onclick="resetSettingsDefaults()" class="btn-secondary"><i class="fa-solid fa-rotate-left"></i> <span>恢復預設值</span></button>
+                <button onclick="document.getElementById('settingsFileInput').click()" class="btn-secondary"><i class="fa-solid fa-upload"></i> 匯入設定</button>
+                <button onclick="exportSettings()" class="btn-secondary"><i class="fa-solid fa-download"></i> 匯出設定</button>
+                <input type="file" id="settingsFileInput" accept=".json" class="hidden" onchange="importSettingsFile(this)">
+                <span class="flex-1"></span>
+                <button onclick="closeSettings()" class="btn-secondary">取消</button>
+                <button onclick="saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="hidden" role="status"></div>
+
+    <script>
+        let allData = [];
+        let currentBrand = "";
+
+        // 預設假資料 (CSV 格式字串，包含 3 間完整公司 + 3 間數據殘缺公司)
+        const defaultCsvData = `品牌,月份,Meta_曝光次數,Meta_觸及人數,Meta_CPC,Meta_CTR,Meta_CPA,Meta_3秒觀看,Meta_ThruPlay,Meta_輪播點擊,Meta_互動次數,Meta_珍藏次數,Meta_分享次數,Threads_串文回覆,Threads_轉發,Threads_引用,TikTok_CPC,TikTok_CTR,TikTok_CPA,TikTok_影片觀看次數,TikTok_觸及人數,TikTok_完整觀看率,TikTok_觀眾保留率,YT_曝光次數,YT_曝光點擊率,YT_觀看次數,YT_平均觀看時間,YT_觀眾續看率,Meta_花費,Meta_點擊數,Meta_轉換數,TikTok_花費,TikTok_點擊數,TikTok_轉換數,官網_訂單數,官網_營收,官網_退款筆數,官網_退款金額
+Zephyr服飾,5月,500000,420000,12,2.5%,350,150000,50000,1200,8500,1200,800,20,5,2,18,1.5%,400,100000,85000,15%,25%,80000,3.5%,10000,0:45,35%,150000,12500,429,27000,1500,68,646,1209312,45,84240
+Zephyr服飾,6月,520000,410000,14,2.2%,380,145000,48000,1100,8000,1100,750,25,8,3,15,1.8%,350,150000,130000,18%,28%,85000,3.2%,10500,0:48,36%,160160,11440,421,40500,2700,116,698,1218708,49,85554
+Zephyr服飾,7月,550000,400000,18,1.8%,450,130000,42000,900,7000,950,600,15,4,1,12,2.2%,300,250000,220000,22%,35%,82000,3.0%,9800,0:50,38%,178200,9900,396,66000,5500,220,801,1456218,56,101808
+Zephyr服飾,8月,580000,380000,22,1.5%,500,110000,35000,750,6200,800,500,10,2,0,10,2.5%,280,350000,310000,28%,40%,80000,2.8%,9500,0:55,42%,191400,8700,383,87500,8750,313,905,1710450,63,119070
+Zephyr服飾,9月,600000,350000,25,1.2%,550,95000,28000,600,5500,700,450,12,3,1,8,2.8%,250,450000,400000,32%,45%,81000,2.9%,9600,0:58,45%,180000,7200,327,100800,12600,403,949,1674036,66,116424
+TechPro軟體,5月,80000,60000,45,0.8%,1500,15000,8000,300,1200,350,150,50,10,5,65,0.3%,2500,10000,8000,5%,10%,150000,4.5%,25000,3:15,55%,28800,640,19,1950,30,1,30,374400,1,12480
+TechPro軟體,6月,85000,62000,42,0.9%,1450,16000,8500,320,1300,380,160,80,15,8,68,0.2%,2600,9000,7500,4%,8%,160000,4.8%,28000,3:30,58%,32130,765,22,1224,18,0,33,384120,1,11640
+TechPro軟體,7月,82000,61000,44,0.8%,1480,15500,8200,310,1250,360,155,60,12,6,70,0.2%,2800,8500,7000,4%,7%,155000,4.6%,26000,3:20,56%,28864,656,20,1190,17,0,30,363600,1,12120
+TechPro軟體,8月,150000,120000,25,1.5%,800,28000,15000,800,4500,1200,850,450,150,85,60,0.4%,2000,12000,9500,6%,12%,180000,5.5%,35000,4:15,65%,56250,2250,70,2880,48,1,107,1348200,2,25200
+TechPro軟體,9月,90000,65000,38,1.0%,1200,18000,9500,400,1800,500,250,120,30,15,62,0.3%,2400,10500,8500,5%,9%,165000,4.9%,30000,3:45,60%,34200,900,29,1984,32,1,45,529200,1,11760
+Crunchy零食,5月,300000,280000,8,3.5%,150,120000,60000,850,9500,800,1200,30,15,5,6,4.5%,160,200000,180000,25%,35%,50000,5.0%,15000,0:35,40%,84000,10500,560,54000,9000,338,1123,408772,34,12376
+Crunchy零食,6月,320000,290000,7,3.6%,145,130000,65000,900,10500,850,1300,45,20,8,5,4.8%,150,350000,300000,28%,38%,55000,5.2%,18000,0:38,42%,80640,11520,556,84000,16800,560,1395,473603,42,14259
+Crunchy零食,7月,400000,380000,15,1.2%,350,180000,75000,500,25000,400,4500,150,80,25,3,1.5%,400,1500000,1400000,8%,15%,60000,4.0%,25000,0:15,18%,72000,4800,206,67500,22500,169,469,165792,14,4949
+Crunchy零食,8月,350000,310000,9,3.0%,160,140000,68000,800,12000,750,1500,60,25,10,5,4.0%,180,400000,350000,22%,30%,52000,4.8%,16000,0:30,35%,94500,10500,591,80000,16000,444,1294,475545,39,14333
+Crunchy零食,9月,330000,300000,8,3.4%,150,135000,66000,850,11000,820,1350,40,18,6,6,4.5%,155,250000,220000,26%,36%,51000,5.1%,15500,0:36,41%,89760,11220,598,67500,11250,435,1291,442813,39,13377
+Lumina美妝(缺TikTok_YT),5月,420000,350000,15,2.8%,420,90000,30000,2500,12000,2100,950,180,45,20,,,,,,,,,,,,,176400,11760,420,,,,567,707616,28,34944
+Lumina美妝(缺TikTok_YT),6月,450000,370000,14,3.0%,390,95000,32000,2800,13500,2400,1100,220,60,25,,,,,,,,,,,,,189000,13500,485,,,,655,762420,33,38412
+Lumina美妝(缺TikTok_YT),7月,480000,390000,13,3.2%,370,105000,38000,3100,15000,2800,1300,290,85,40,,,,,,,,,,,,,199680,15360,540,,,,729,883548,36,43632
+Lumina美妝(缺TikTok_YT),8月,460000,380000,14,2.9%,400,98000,35000,2900,14000,2500,1150,250,70,30,,,,,,,,,,,,,186760,13340,467,,,,630,793800,32,40320
+Lumina美妝(缺TikTok_YT),9月,510000,420000,12,3.5%,350,120000,45000,3600,18000,3200,1600,380,110,55,,,,,,,,,,,,,214200,17850,612,,,,826,971376,41,48216
+Nova健身(缺Meta廣告),5月,,25000,,,,,,,800,120,50,,,,5,3.8%,220,380000,320000,35%,48%,120000,6.2%,45000,4:20,52%,,,,72200,14440,328,459,1193400,18,46800
+Nova健身(缺Meta廣告),6月,,28000,,,,,,,950,150,65,,,,4,4.2%,190,450000,390000,38%,50%,135000,6.5%,52000,4:45,55%,,,,75600,18900,398,557,1350725,22,53350
+Nova健身(缺Meta廣告),7月,,22000,,,,,,,600,90,30,,,,4,4.5%,180,520000,460000,42%,55%,150000,6.8%,60000,5:10,58%,,,,93600,23400,520,728,1838200,29,73225
+Nova健身(缺Meta廣告),8月,,30000,,,,,,,1100,180,80,,,,3,5.0%,150,680000,600000,45%,60%,180000,7.2%,75000,5:30,62%,,,,102000,34000,680,952,2499000,38,99750
+Nova健身(缺Meta廣告),9月,,27000,,,,,,,900,140,55,,,,4,4.6%,170,590000,510000,40%,53%,160000,6.9%,65000,4:55,57%,,,,108560,27140,639,895,2192750,36,88200
+Oasis咖啡(漏填嚴重),5月,120000,95000,10,2.0%,200,30000,10000,400,2500,300,150,15,3,1,8,2.1%,210,60000,50000,18%,25%,,,,,,24000,2400,120,10080,1260,48,202,94536,6,2808
+Oasis咖啡(漏填嚴重),6月,130000,105000,9,2.2%,190,35000,12000,450,2800,350,180,,,,7,2.4%,195,75000,62000,20%,28%,,,,,,25740,2860,135,12600,1800,65,240,104760,7,3056
+Oasis咖啡(漏填嚴重),7月,,,,,,,,,,,,40,10,5,6,2.8%,180,90000,78000,22%,30%,,,,,,,,,15120,2520,84,,,,
+Oasis咖啡(漏填嚴重),8月,140000,115000,11,1.9%,220,32000,11000,380,2600,310,160,25,6,2,,,,,,,,,,,,,29260,2660,133,,,,160,75600,5,2363
+Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,,,110000,95000,,,,,,,,30000,3750,171,,,,,,,`;
+
+        // Gemini 預設模型；實際使用的模型在左側欄填寫，模型下架時在畫面上換新名稱即可
+        const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
+        const AI_STORAGE_KEYS = { model: 'nexus.geminiModel', apiKey: 'nexus.geminiApiKey' };
+
+        // ===== 指標目錄 =====
+        // 填表畫面、CSV / JSON 欄位、各平台詳細數據小卡都以這份清單為準
+        // type：int 整數、money 金額、pct 百分比 (填 3.5 代表 3.5%)、time 分:秒、ratio 倍數
+        const PLATFORMS = ['Meta', 'Threads', 'TikTok', 'YouTube', '官網營收'];
+        const metric = (key, platform, name, type, unit, desc, optional = false) => ({ key, platform, name, type, unit, desc, optional });
+        const METRICS = [
+            metric('Meta_曝光次數', 'Meta', '曝光次數', 'int', '次', '廣告或貼文被看到的總次數'),
+            metric('Meta_觸及人數', 'Meta', '觸及人數', 'int', '人', '看到內容的不重複人數'),
+            metric('Meta_CPC', 'Meta', 'CPC 每次點擊成本', 'money', 'NT$', '平均每次點擊花多少錢'),
+            metric('Meta_CTR', 'Meta', 'CTR 點擊率', 'pct', '%', '看到廣告的人有多少點進來，反映素材吸睛度'),
+            metric('Meta_CPA', 'Meta', 'CPA 轉換成本', 'money', 'NT$', '平均每取得一次轉換花多少錢'),
+            metric('Meta_3秒觀看', 'Meta', '3 秒觀看', 'int', '次', '影片被看超過 3 秒的次數'),
+            metric('Meta_ThruPlay', 'Meta', 'ThruPlay', 'int', '次', '影片看完或看超過 15 秒的次數'),
+            metric('Meta_輪播點擊', 'Meta', '輪播點擊', 'int', '次', '輪播素材被點擊的次數'),
+            metric('Meta_互動次數', 'Meta', '互動次數', 'int', '次', '按讚、留言、分享等互動總數'),
+            metric('Meta_珍藏次數', 'Meta', '珍藏次數', 'int', '次', '被收藏的次數，反映內容的實用價值'),
+            metric('Meta_分享次數', 'Meta', '分享次數', 'int', '次', '被分享的次數，反映社交傳播力'),
+            metric('Meta_花費', 'Meta', '廣告花費', 'money', 'NT$', '廣告實際花費', true),
+            metric('Meta_點擊數', 'Meta', '點擊數', 'int', '次', '廣告實際點擊次數', true),
+            metric('Meta_轉換數', 'Meta', '轉換數', 'int', '次', '廣告帶來的轉換次數', true),
+            metric('Threads_串文回覆', 'Threads', '串文回覆', 'int', '則', '貼文收到的回覆數，反映討論意願'),
+            metric('Threads_轉發', 'Threads', '轉發', 'int', '次', '貼文被轉發的次數，反映傳播力'),
+            metric('Threads_引用', 'Threads', '引用', 'int', '次', '貼文被引用並加上評論的次數'),
+            metric('TikTok_CPC', 'TikTok', 'CPC 每次點擊成本', 'money', 'NT$', '平均每次點擊花多少錢'),
+            metric('TikTok_CTR', 'TikTok', 'CTR 點擊率', 'pct', '%', '看到廣告的人有多少點進來，反映素材吸睛度'),
+            metric('TikTok_CPA', 'TikTok', 'CPA 轉換成本', 'money', 'NT$', '平均每取得一次轉換花多少錢'),
+            metric('TikTok_影片觀看次數', 'TikTok', '影片觀看次數', 'int', '次', '影片被播放的次數'),
+            metric('TikTok_觸及人數', 'TikTok', '觸及人數', 'int', '人', '看到內容的不重複人數'),
+            metric('TikTok_完整觀看率', 'TikTok', '完整觀看率', 'pct', '%', '把影片完整看完的比例，反映內容吸引力'),
+            metric('TikTok_觀眾保留率', 'TikTok', '觀眾保留率', 'pct', '%', '觀眾平均看了影片多少比例'),
+            metric('TikTok_花費', 'TikTok', '廣告花費', 'money', 'NT$', '廣告實際花費', true),
+            metric('TikTok_點擊數', 'TikTok', '點擊數', 'int', '次', '廣告實際點擊次數', true),
+            metric('TikTok_轉換數', 'TikTok', '轉換數', 'int', '次', '廣告帶來的轉換次數', true),
+            metric('YT_曝光次數', 'YouTube', '曝光次數', 'int', '次', '影片縮圖被顯示的次數'),
+            metric('YT_曝光點擊率', 'YouTube', '曝光點擊率', 'pct', '%', '看到縮圖後點進影片的比例，反映標題與縮圖吸引力'),
+            metric('YT_觀看次數', 'YouTube', '觀看次數', 'int', '次', '影片被觀看的次數'),
+            metric('YT_平均觀看時間', 'YouTube', '平均觀看時間', 'time', '分:秒', '每次觀看平均看多久'),
+            metric('YT_觀眾續看率', 'YouTube', '觀眾續看率', 'pct', '%', '觀眾平均看完影片的比例'),
+            metric('官網_訂單數', '官網營收', '訂單數', 'int', '筆', '官網或電商的訂單總數（含自然流量）', true),
+            metric('官網_營收', '官網營收', '營收', 'money', 'NT$', '訂單總營收', true),
+            metric('官網_退款筆數', '官網營收', '退款筆數', 'int', '筆', '退款的訂單數', true),
+            metric('官網_退款金額', '官網營收', '退款金額', 'money', 'NT$', '退款總金額', true)
+        ];
+        const METRIC_BY_KEY = Object.fromEntries(METRICS.map(m => [m.key, m]));
+
+        // 由原始欄位計算的指標 (只出現在小卡，不需要填寫)
+        const ratioOf = (a, b, scale = 100) => r => {
+            const x = parseMetric(r, a), y = parseMetric(r, b);
+            return x !== null && y ? x / y * scale : null;
+        };
+        const DERIVED_METRICS = [
+            { key: 'Meta_3秒觀看率', platform: 'Meta', name: '3 秒觀看率', type: 'pct', unit: '%', desc: '曝光中有多少人停下來看超過 3 秒，反映影片開頭吸引力', calc: ratioOf('Meta_3秒觀看', 'Meta_曝光次數') },
+            { key: 'Meta_ThruPlay率', platform: 'Meta', name: 'ThruPlay 率', type: 'pct', unit: '%', desc: '停下來的人有多少繼續看完', calc: ratioOf('Meta_ThruPlay', 'Meta_3秒觀看') },
+            { key: 'Meta_互動率', platform: 'Meta', name: '互動率', type: 'pct', unit: '%', desc: '觸及的人有多少產生互動', calc: ratioOf('Meta_互動次數', 'Meta_觸及人數') },
+            { key: '官網_客單價', platform: '官網營收', name: '客單價', type: 'money', unit: 'NT$', desc: '平均每筆訂單金額', calc: ratioOf('官網_營收', '官網_訂單數', 1) },
+            { key: '官網_退款率', platform: '官網營收', name: '退款率', type: 'pct', unit: '%', desc: '退款金額佔營收的比例', calc: ratioOf('官網_退款金額', '官網_營收') },
+            { key: '官網_ROAS', platform: '官網營收', name: '整體 ROAS', type: 'ratio', unit: 'x', desc: '官網營收 ÷ Meta 與 TikTok 廣告花費（含自然流量訂單，非廣告歸因）', calc: r => {
+                const revenue = parseMetric(r, '官網_營收');
+                const spend = ['Meta_花費', 'TikTok_花費'].map(k => parseMetric(r, k)).filter(v => v !== null).reduce((s, v) => s + v, 0);
+                return revenue !== null && spend > 0 ? revenue / spend : null;
+            } }
+        ];
+        const CARD_METRICS = [...METRICS, ...DERIVED_METRICS];
+        const AOV_METRIC = DERIVED_METRICS.find(m => m.key === '官網_客單價');
+
+        // ===== KPI 預設標準 =====
+        // method：benchmark 參考標準 / brandAvg 與品牌平均比 (差距 %) / aovRatio 佔客單價比例 (%) / none 不評分
+        // dir：up 越高越好 / down 越低越好；數值介於 good 與 bad 門檻之間為「普通」
+        const KPI_METHODS = { benchmark: '參考標準', brandAvg: '與品牌平均比', aovRatio: '佔客單價比例', none: '不評分' };
+        const AVG_UP = { method: 'brandAvg', dir: 'up', good: 10, bad: -10 };
+        const AVG_DOWN = { method: 'brandAvg', dir: 'down', good: -10, bad: 10 };
+        const NO_RATING = { method: 'none', dir: 'up', good: '', bad: '' };
+        const bench = (dir, good, bad) => ({ method: 'benchmark', dir, good, bad });
+        const aov = (good, bad) => ({ method: 'aovRatio', dir: 'down', good, bad });
+        const DEFAULT_KPI = {
+            Meta_曝光次數: AVG_UP, Meta_觸及人數: AVG_UP, Meta_CPC: aov(3, 8), Meta_CTR: bench('up', 2, 1), Meta_CPA: aov(30, 60),
+            Meta_3秒觀看: AVG_UP, Meta_ThruPlay: AVG_UP, Meta_輪播點擊: AVG_UP, Meta_互動次數: AVG_UP, Meta_珍藏次數: AVG_UP, Meta_分享次數: AVG_UP,
+            Meta_花費: NO_RATING, Meta_點擊數: AVG_UP, Meta_轉換數: AVG_UP,
+            Meta_3秒觀看率: bench('up', 30, 15), Meta_ThruPlay率: bench('up', 50, 25), Meta_互動率: bench('up', 3, 1),
+            Threads_串文回覆: AVG_UP, Threads_轉發: AVG_UP, Threads_引用: AVG_UP,
+            TikTok_CPC: aov(3, 8), TikTok_CTR: bench('up', 1.5, 0.8), TikTok_CPA: aov(30, 60), TikTok_影片觀看次數: AVG_UP, TikTok_觸及人數: AVG_UP,
+            TikTok_完整觀看率: bench('up', 30, 15), TikTok_觀眾保留率: bench('up', 40, 20), TikTok_花費: NO_RATING, TikTok_點擊數: AVG_UP, TikTok_轉換數: AVG_UP,
+            YT_曝光次數: AVG_UP, YT_曝光點擊率: bench('up', 5, 2), YT_觀看次數: AVG_UP, YT_平均觀看時間: AVG_UP, YT_觀眾續看率: bench('up', 50, 30),
+            官網_訂單數: AVG_UP, 官網_營收: AVG_UP, 官網_退款筆數: AVG_DOWN, 官網_退款金額: AVG_DOWN,
+            官網_客單價: AVG_UP, 官網_退款率: bench('down', 3, 8), 官網_ROAS: bench('up', 4, 2)
+        };
+
+        // 使用者設定 (共用 KPI 標準 + AI 提示詞)；品牌自訂標準存在各品牌的 kpiOverrides
+        let settings = null;
+        const clone = obj => JSON.parse(JSON.stringify(obj));
+        function defaultSettings() {
+            return { kpi: clone(DEFAULT_KPI), prompts: { ...DEFAULT_PROMPTS } };
+        }
+        function mergeSettings(saved) {
+            const d = defaultSettings();
+            if (!saved) return d;
+            return { kpi: { ...d.kpi, ...(saved.kpi || {}) }, prompts: { ...d.prompts, ...(saved.prompts || {}) } };
+        }
+        // 某品牌某指標實際使用的標準：共用標準 + 品牌自訂覆寫
+        function effectiveKpi(key, brand = currentBrand) {
+            const overrides = (brandStore[brand] && brandStore[brand].kpiOverrides) || {};
+            return { ...(settings.kpi[key] || NO_RATING), ...(overrides[key] || {}) };
+        }
+
+        let cpaChartInstance = null;
+        let ctrChartInstance = null;
+
+        // ===== 品牌資料 =====
+        // brandStore：{ 品牌名稱: { records: [{ 月份, 指標代碼: 值 }], kpiOverrides: { 指標代碼: { method, dir, good, bad } } } }
+        // 自動保存在瀏覽器 (localStorage)，也可存成一個品牌一個 JSON / CSV 檔
+        let brandStore = {};
+        const STORAGE_KEYS = { brands: 'nexus.brands.v1', settings: 'nexus.settings.v1' };
+        const fileHandles = {}; // 存 JSON 時記住檔案位置，之後直接覆寫同一個檔 (Chrome / Edge)
+        let dataVersion = 0;     // 資料每次變動 +1，用來判斷儀表板是否需要重畫
+        let dashboardRenderedFor = '';
+        let currentView = 'dashboard';
+
+        // localStorage 在無痕模式等情況可能無法使用，失敗時不影響操作
+        function loadLocal(key) {
+            try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+        }
+        function saveLocal(key, value) {
+            try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 無法保存時略過 */ }
+        }
+        function persistBrands() { saveLocal(STORAGE_KEYS.brands, brandStore); }
+        function persistSettings() { saveLocal(STORAGE_KEYS.settings, settings); }
+
+        // 由 brandStore 重建儀表板使用的 allData (每列是一個品牌的一個月份)
+        function syncAllData() {
+            allData = [];
+            Object.entries(brandStore).forEach(([name, b]) => b.records.forEach(r => allData.push({ ...r, 品牌: name })));
+        }
+
+        // 初始化
+        window.onload = function() {
+            settings = mergeSettings(loadLocal(STORAGE_KEYS.settings));
+            const saved = loadLocal(STORAGE_KEYS.brands);
+            brandStore = saved && Object.keys(saved).length ? saved : parseCSVImport(defaultCsvData, '');
+            syncAllData();
+            refreshBrandSelector(Object.keys(brandStore)[0]);
+
+            // 不支援檔案選取視窗 API 的瀏覽器改用一般的檔案上傳
+            document.getElementById('csvFileInput').addEventListener('change', async function(e) {
+                await handleDataFiles([...e.target.files]);
+                e.target.value = ''; // 允許重新選擇同一個檔案
+            });
+
+            document.getElementById('brandSelector').addEventListener('change', function(e) {
+                currentBrand = e.target.value;
+                renderCurrentView();
+            });
+
+            const editorTable = document.getElementById('editorTable');
+            editorTable.addEventListener('input', handleCellInput);
+            editorTable.addEventListener('keydown', handleCellKeydown);
+            document.getElementById('kpiTable').addEventListener('change', handleKpiChange);
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+            initAiConfig();
+
+            showView('dashboard');
+        };
+
+        function refreshBrandSelector(selectName) {
+            const selector = document.getElementById('brandSelector');
+            selector.innerHTML = '';
+            Object.keys(brandStore).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                selector.appendChild(opt);
+            });
+            currentBrand = brandStore[selectName] ? selectName : (Object.keys(brandStore)[0] || '');
+            selector.value = currentBrand;
+        }
+
+        // 切換「儀表板 / 填寫資料」頁面
+        function showView(view) {
+            currentView = view;
+            document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
+            document.getElementById('editorView').classList.toggle('hidden', view !== 'editor');
+            document.querySelectorAll('[data-nav]').forEach(btn => {
+                const active = btn.dataset.nav === view;
+                btn.classList.toggle('bg-gray-900', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('text-gray-700', !active);
+                btn.classList.toggle('hover:bg-gray-100', !active);
+            });
+            renderCurrentView();
+        }
+
+        // 只在品牌或資料有變動時重畫儀表板，避免清掉已產出的 AI 報告
+        function renderCurrentView() {
+            if (currentView === 'editor') {
+                renderEditor();
+                return;
+            }
+            const key = `${currentBrand}#${dataVersion}`;
+            if (dashboardRenderedFor !== key) {
+                updateDashboard();
+                dashboardRenderedFor = key;
+            }
+        }
+
+        function markDataChanged() {
+            dataVersion++;
+            syncAllData();
+            clearTimeout(markDataChanged.timer);
+            markDataChanged.timer = setTimeout(persistBrands, 400);
+        }
+
+        // 從檔名推測品牌名稱，例如「跨平台行銷戰情室_模擬數據 - Crunchy零食.csv」→「Crunchy零食」
+        function brandFromFileName(fileName) {
+            const base = fileName.replace(/\.(csv|json)$/i, '').trim();
+            const parts = base.split(' - ');
+            return parts[parts.length - 1].trim() || '未命名品牌';
+        }
+
+        // 解析 CSV 文字為二維陣列 (支援雙引號包住的欄位，例如 "300,000")
+        function parseCSVRows(text) {
+            const rows = [];
+            let row = [], field = '', inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQuotes) {
+                    if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+                    else if (c === '"') inQuotes = false;
+                    else field += c;
+                } else if (c === '"') {
+                    inQuotes = true;
+                } else if (c === ',') {
+                    row.push(field); field = '';
+                } else if (c === '\n' || c === '\r') {
+                    if (c === '\r' && text[i + 1] === '\n') i++;
+                    row.push(field); rows.push(row);
+                    row = []; field = '';
+                } else {
+                    field += c;
+                }
+            }
+            if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+            return rows.filter(r => r.some(cell => cell.trim() !== ''));
+        }
+
+        // 統一數值格式：去掉 %、千分位與 NT$；時間維持「分:秒」
+        function normalizeValue(key, raw) {
+            const s = String(raw === undefined || raw === null ? '' : raw).trim();
+            if (!s || (METRIC_BY_KEY[key] && METRIC_BY_KEY[key].type === 'time')) return s;
+            return s.replace(/NT\$|[%,\s]/g, '');
+        }
+
+        function makeRecord(month, source) {
+            const record = { 月份: String(month).trim() };
+            METRICS.forEach(m => { record[m.key] = normalizeValue(m.key, source[m.key]); });
+            return record;
+        }
+
+        // 讀取檔案文字：先用 UTF-8，失敗時改用 Big5 (Excel 在繁中 Windows 預設存成 Big5)
+        async function readFileText(file) {
+            const buffer = await file.arrayBuffer();
+            try {
+                return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+            } catch (e) {
+                return new TextDecoder('big5').decode(buffer);
+            }
+        }
+
+        // 新版 CSV：第 1 列「品牌,名稱」，第 2 列起為「代碼,平台,指標,說明,單位,月份...」
+        const LONG_FIXED_COLS = ['代碼', '平台', '指標', '說明', '單位'];
+
+        // 解析 CSV：支援新版「指標為列、月份為欄」單一品牌格式，以及舊版「月份為列」多品牌格式
+        function parseCSVImport(text, fileName) {
+            const rows = parseCSVRows(text.replace(/^﻿/, '')).map(r => r.map(c => c.trim()));
+            const headerIdx = rows.findIndex(r => r[0] === '代碼');
+            if (headerIdx >= 0) {
+                const brandRow = rows.slice(0, headerIdx).find(r => r[0] === '品牌');
+                const brand = (brandRow && brandRow[1]) || brandFromFileName(fileName);
+                const monthCols = rows[headerIdx].map((h, i) => ({ h, i })).filter(c => c.i >= LONG_FIXED_COLS.length && c.h);
+                if (!monthCols.length) throw new Error('找不到月份欄位。');
+                const metricRows = {};
+                rows.slice(headerIdx + 1).forEach(r => { if (METRIC_BY_KEY[r[0]]) metricRows[r[0]] = r; });
+                const records = monthCols.map(({ h, i }) =>
+                    makeRecord(h, Object.fromEntries(Object.entries(metricRows).map(([key, r]) => [key, r[i]]))));
+                return { [brand]: { records, kpiOverrides: {} } };
+            }
+
+            const headers = rows[0] || [];
+            if (!headers.includes('月份')) throw new Error('看不出檔案格式：需要「代碼」欄（新版範本）或「月份」欄（舊版格式）。');
+            const result = {};
+            rows.slice(1).forEach(r => {
+                const src = Object.fromEntries(headers.map((h, i) => [h, r[i] || '']));
+                if (!src['月份']) return;
+                const brand = src['品牌'] || brandFromFileName(fileName);
+                (result[brand] = result[brand] || { records: [], kpiOverrides: {} }).records.push(makeRecord(src['月份'], src));
+            });
+            if (!Object.keys(result).length) throw new Error('檔案裡沒有任何月份資料。');
+            return result;
+        }
+
+        function parseBrandJSON(obj) {
+            if (obj.format !== 'nexus-brand' || !obj.brand || !Array.isArray(obj.records)) throw new Error('不是本系統的品牌 JSON 檔。');
+            return { [obj.brand]: { records: obj.records.map(r => makeRecord(r['月份'] || '', r)), kpiOverrides: obj.kpiOverrides || {} } };
+        }
+
+        // 匯入多個檔案 (CSV / 品牌 JSON / 設定 JSON)；回傳每個檔案載入的品牌名稱
+        async function handleDataFiles(files) {
+            const loaded = [], messages = [];
+            let hasError = false;
+            for (const file of files) {
+                try {
+                    const text = await readFileText(file);
+                    let imported;
+                    if (/\.json$/i.test(file.name)) {
+                        const obj = JSON.parse(text);
+                        if (obj.format === 'nexus-settings') {
+                            settings = mergeSettings(obj);
+                            persistSettings();
+                            dataVersion++;
+                            loaded.push(null);
+                            messages.push(`已套用設定檔 ${file.name}`);
+                            continue;
+                        }
+                        imported = parseBrandJSON(obj);
+                    } else {
+                        imported = parseCSVImport(text, file.name);
+                    }
+                    // 品牌已存在且內容不同時先確認，避免蓋掉在瀏覽器裡填好的資料
+                    const conflicts = Object.keys(imported).filter(name =>
+                        brandStore[name] && JSON.stringify(brandStore[name].records) !== JSON.stringify(imported[name].records));
+                    if (conflicts.length && !confirm(`「${conflicts.join('、')}」已經有資料，要用 ${file.name} 的內容取代嗎？`)) {
+                        loaded.push(null);
+                        messages.push(`已略過 ${file.name}`);
+                        continue;
+                    }
+                    Object.entries(imported).forEach(([name, b]) => {
+                        if (!b.records.length) return;
+                        const keepOverrides = brandStore[name] && !Object.keys(b.kpiOverrides).length ? brandStore[name].kpiOverrides : b.kpiOverrides;
+                        brandStore[name] = { records: b.records, kpiOverrides: keepOverrides || {} };
+                    });
+                    const names = Object.keys(imported);
+                    loaded.push(names[0]);
+                    messages.push(`已載入 ${file.name}：${names.join('、')}`);
+                } catch (e) {
+                    hasError = true;
+                    loaded.push(null);
+                    messages.push(`${file.name} 無法載入：${e.message}`);
+                }
+            }
+            const lastBrand = loaded.filter(Boolean).pop();
+            if (lastBrand) refreshBrandSelector(lastBrand);
+            if (lastBrand || messages.some(m => m.startsWith('已套用設定檔'))) {
+                markDataChanged();
+                persistBrands();
+                renderCurrentView();
+            }
+            if (messages.length) showToast(messages.join('\n'), hasError ? 'error' : 'info');
+            return loaded;
+        }
+
+        // 開啟資料檔：Chrome / Edge 會記住 JSON 檔位置，之後「存成 JSON」直接覆寫原檔
+        async function openDataFiles() {
+            if (!window.showOpenFilePicker) {
+                document.getElementById('csvFileInput').click();
+                return;
+            }
+            try {
+                const handles = await window.showOpenFilePicker({
+                    multiple: true,
+                    types: [{ description: '品牌資料 (CSV / JSON)', accept: { 'text/csv': ['.csv'], 'application/json': ['.json'] } }]
+                });
+                const loaded = await handleDataFiles(await Promise.all(handles.map(h => h.getFile())));
+                handles.forEach((h, i) => { if (loaded[i] && /\.json$/i.test(h.name)) fileHandles[loaded[i]] = h; });
+            } catch (e) {
+                if (e.name !== 'AbortError') document.getElementById('csvFileInput').click();
+            }
+        }
+
+        // ===== 匯出 =====
+        function csvCell(value) {
+            const s = String(value === undefined || value === null ? '' : value);
+            return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        }
+
+        // 一個品牌一個 CSV：指標為列、月份為欄；開頭加 BOM 讓 Excel 正確顯示中文
+        function buildBrandCSV(name, records) {
+            const lines = [['品牌', name], [...LONG_FIXED_COLS, ...records.map(r => r['月份'])]];
+            METRICS.forEach(m => lines.push([m.key, m.platform, m.optional ? `${m.name}（選填）` : m.name, m.desc, m.unit, ...records.map(r => r[m.key] || '')]));
+            return '﻿' + lines.map(l => l.map(csvCell).join(',')).join('\r\n') + '\r\n';
+        }
+
+        function downloadFile(fileName, content, mime) {
+            const url = URL.createObjectURL(new Blob([content], { type: mime }));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function safeFileName(name) {
+            return name.replace(/[\\/:*?"<>|]/g, '_');
+        }
+
+        function downloadBrandCSV() {
+            downloadFile(`${safeFileName(currentBrand)}.csv`, buildBrandCSV(currentBrand, brandStore[currentBrand].records), 'text/csv;charset=utf-8');
+            showToast(`已下載 ${safeFileName(currentBrand)}.csv`);
+        }
+
+        function downloadTemplateCSV() {
+            const records = ['1月', '2月', '3月'].map(m => makeRecord(m, {}));
+            downloadFile('品牌數據填寫範本.csv', buildBrandCSV('（請填品牌名稱）', records), 'text/csv;charset=utf-8');
+        }
+
+        async function saveBrandJSON() {
+            const name = currentBrand;
+            const content = JSON.stringify({
+                format: 'nexus-brand',
+                version: 1,
+                brand: name,
+                savedAt: new Date().toISOString(),
+                records: brandStore[name].records,
+                kpiOverrides: brandStore[name].kpiOverrides || {}
+            }, null, 2);
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = fileHandles[name] || await window.showSaveFilePicker({
+                        suggestedName: `${safeFileName(name)}.json`,
+                        types: [{ description: '品牌資料 JSON', accept: { 'application/json': ['.json'] } }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    fileHandles[name] = handle;
+                    showToast(`已儲存到 ${handle.name}`);
+                    return;
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                    // 其他錯誤 (例如沒有寫入權限)：改用下載
+                }
+            }
+            downloadFile(`${safeFileName(name)}.json`, content, 'application/json');
+            showToast(`已下載 ${safeFileName(name)}.json`);
+        }
+
+        function showToast(message, type = 'info') {
+            const box = document.getElementById('toast');
+            box.textContent = message;
+            box.className = `fixed bottom-4 right-4 z-50 max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm whitespace-pre-line ${type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}`;
+            clearTimeout(showToast.timer);
+            showToast.timer = setTimeout(() => box.classList.add('hidden'), type === 'error' ? 8000 : 4000);
+        }
+
+        function esc(value) {
+            return String(value === undefined || value === null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function tabClass(active) {
+            return `px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${active ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`;
+        }
+
+        // 幫數字加上千分位
+        function fmt(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0';
+            return Number(num).toLocaleString('en-US');
+        }
+        
+        // 移除 % 字號並轉為數字 (安全處理空字串與未定義)
+        function pFloat(str) {
+            if (!str || typeof str !== 'string' || str.trim() === '') return NaN;
+            return parseFloat(str.replace(/[%,]/g, '').trim());
+        }
+
+        // 安全轉換整數 (若空值則回傳 null 以便區分「0」與「未填寫」)
+        function pIntOrNull(str) {
+            if (!str || typeof str !== 'string' || str.trim() === '') return null;
+            const val = parseInt(str.replace(/,/g, '').trim(), 10);
+            return isNaN(val) ? null : val;
+        }
+
+        // 更新整個儀表板的數字與圖表
+        function updateDashboard() {
+            document.getElementById('dashboardTitle').textContent = `${currentBrand} - 行銷成效總覽`;
+            
+            const brandData = allData.filter(d => d['品牌'] === currentBrand);
+            if(brandData.length === 0) return;
+            
+            const latest = brandData[brandData.length - 1];
+            document.getElementById('currentMonthText').textContent = latest['月份'];
+
+            // 檢查資料完整性並顯示提示橫幅 (逐月檢查各平台的核心欄位)
+            const platformChecks = [
+                { name: 'Meta', fields: ['Meta_觸及人數', 'Meta_CPC', 'Meta_CTR', 'Meta_CPA'] },
+                { name: 'TikTok', fields: ['TikTok_影片觀看次數', 'TikTok_CPC', 'TikTok_CTR', 'TikTok_CPA'] },
+                { name: 'YouTube', fields: ['YT_觀看次數', 'YT_曝光點擊率'] }
+            ];
+            const missingNotes = [];
+            platformChecks.forEach(p => {
+                const months = brandData
+                    .filter(d => p.fields.some(f => !d[f]))
+                    .map(d => d['月份']);
+                if (months.length === brandData.length) missingNotes.push(`${p.name}（全部月份）`);
+                else if (months.length > 0) missingNotes.push(`${p.name}（${months.join('、')}）`);
+            });
+
+            const banner = document.getElementById('dataCompletenessBanner');
+            if (missingNotes.length > 0) {
+                banner.classList.remove('hidden');
+                document.getElementById('missingDataDetails').textContent =
+                    `未填寫項目：${missingNotes.join('；')}。系統已自動啟用容錯模式：缺漏指標將標示為「無資料」或自動切換為替代平台指標，折線圖已自動平滑連接斷層。`;
+            } else {
+                banner.classList.add('hidden');
+            }
+            
+            // 1. 本月社群總流量
+            const metaReach = pIntOrNull(latest['Meta_觸及人數']);
+            const tiktokViews = pIntOrNull(latest['TikTok_影片觀看次數']);
+            const totalTraffic = (metaReach || 0) + (tiktokViews || 0);
+            document.getElementById('kpiTraffic').textContent = totalTraffic > 0 ? fmt(totalTraffic) : '無資料';
+            document.getElementById('kpiTrafficDetail').innerHTML = 
+                `Meta 觸及: ${metaReach !== null ? fmt(metaReach) : '<span class="text-gray-400">未填</span>'} | TikTok 觀看: ${tiktokViews !== null ? fmt(tiktokViews) : '<span class="text-gray-400">未填</span>'}`;
+            
+            // 2. 黃金互動率
+            const goldenEngCount = (pIntOrNull(latest['Meta_珍藏次數']) || 0) + 
+                                   (pIntOrNull(latest['Meta_分享次數']) || 0) + 
+                                   (pIntOrNull(latest['Threads_串文回覆']) || 0) + 
+                                   (pIntOrNull(latest['Threads_轉發']) || 0) +
+                                   (pIntOrNull(latest['Threads_引用']) || 0);
+            const totalReach = (metaReach || 0) + (pIntOrNull(latest['TikTok_觸及人數']) || 0);
+            const goldenEngRate = totalReach > 0 ? ((goldenEngCount / totalReach) * 100).toFixed(2) : '0.00';
+            document.getElementById('kpiEngagement').textContent = totalReach > 0 ? `${goldenEngRate}%` : '無資料';
+            document.getElementById('kpiEngagementDetail').textContent = `深度互動總計: ${fmt(goldenEngCount)} 次 (珍藏/分享/串文)`;
+            
+            // 3. 短影音平均完播率
+            const tiktokFullWatch = pFloat(latest['TikTok_完整觀看率']);
+            const meta3s = pIntOrNull(latest['Meta_3秒觀看']);
+            const metaThru = pIntOrNull(latest['Meta_ThruPlay']);
+            const metaRetentionRate = (meta3s && metaThru) ? ((metaThru / meta3s) * 100).toFixed(1) : null;
+
+            if (!isNaN(tiktokFullWatch)) {
+                document.getElementById('kpiRetention').textContent = `${tiktokFullWatch}%`;
+                document.getElementById('kpiRetentionDetail').innerHTML = 
+                    `TikTok 完播 ${tiktokFullWatch}% | Meta 續看 ${metaRetentionRate !== null ? metaRetentionRate + '%' : '<span class="text-gray-400">未填</span>'}`;
+            } else if (metaRetentionRate !== null) {
+                document.getElementById('kpiRetention').textContent = `${metaRetentionRate}%`;
+                document.getElementById('kpiRetentionDetail').innerHTML = `<span class="text-amber-600">(以 Meta 續看率替代)</span> TikTok 未填寫`;
+            } else {
+                document.getElementById('kpiRetention').textContent = `無資料`;
+                document.getElementById('kpiRetentionDetail').innerHTML = `<span class="text-gray-400">本月未填寫短影音完播與續看數據</span>`;
+            }
+            
+            // 4. 單次引流成本 / 點擊成本
+            const metaCpc = pFloat(latest['Meta_CPC']);
+            const tiktokCpc = pFloat(latest['TikTok_CPC']);
+            
+            if (!isNaN(metaCpc) && !isNaN(tiktokCpc)) {
+                if(metaCpc <= tiktokCpc) {
+                    document.getElementById('kpiCpc').textContent = `NT$ ${metaCpc}`;
+                    document.getElementById('kpiCpcWinner').innerHTML = `最佳導流: <span class="font-bold text-blue-600">Meta ($${metaCpc})</span> vs TikTok ($${tiktokCpc})`;
+                } else {
+                    document.getElementById('kpiCpc').textContent = `NT$ ${tiktokCpc}`;
+                    document.getElementById('kpiCpcWinner').innerHTML = `最佳導流: <span class="font-bold text-gray-900">TikTok ($${tiktokCpc})</span> vs Meta ($${metaCpc})`;
+                }
+            } else if (!isNaN(metaCpc)) {
+                document.getElementById('kpiCpc').textContent = `NT$ ${metaCpc}`;
+                document.getElementById('kpiCpcWinner').innerHTML = `僅投放 <span class="font-bold text-blue-600">Meta ($${metaCpc})</span> | TikTok 未填`;
+            } else if (!isNaN(tiktokCpc)) {
+                document.getElementById('kpiCpc').textContent = `NT$ ${tiktokCpc}`;
+                document.getElementById('kpiCpcWinner').innerHTML = `僅投放 <span class="font-bold text-gray-900">TikTok ($${tiktokCpc})</span> | Meta 未填`;
+            } else {
+                document.getElementById('kpiCpc').textContent = `無資料`;
+                document.getElementById('kpiCpcWinner').innerHTML = `<span class="text-gray-400">本月無廣告 CPC 數據</span>`;
+            }
+
+            renderDetailSection();
+
+            // 繪製圖表
+            const labels = brandData.map(d => d['月份']);
+            const metaCPA = brandData.map(d => { const v = pFloat(d['Meta_CPA']); return isNaN(v) ? null : v; });
+            const tiktokCPA = brandData.map(d => { const v = pFloat(d['TikTok_CPA']); return isNaN(v) ? null : v; });
+            
+            const metaCTR = pFloat(latest['Meta_CTR']);
+            const tiktokCTR = pFloat(latest['TikTok_CTR']);
+            const ytCTR = pFloat(latest['YT_曝光點擊率']);
+
+            drawCpaChart(labels, metaCPA, tiktokCPA);
+            // 未填寫的平台傳 null，長條圖不畫該平台 (避免誤以為點擊率為 0)
+            drawCtrChart(isNaN(metaCTR) ? null : metaCTR, isNaN(tiktokCTR) ? null : tiktokCTR, isNaN(ytCTR) ? null : ytCTR);
+            
+            resetAiOutputs();
+            reportSelection = { monthly: {}, overall: {} }; // 換品牌或資料變動時，月份回到預設
+            switchReport(currentReport);
+        }
+
+        // ===== 各平台詳細數據小卡 =====
+        // 每個指標顯示：數值、與前月比較、良好/普通/待加強 (標準可在「設定」修改)
+        let detailPlatform = 'Meta';
+        const LEVELS = {
+            good: ['良好', 'bg-emerald-50 text-emerald-700'],
+            mid: ['普通', 'bg-gray-100 text-gray-600'],
+            bad: ['待加強', 'bg-amber-50 text-amber-700'],
+            na: ['無資料', 'bg-gray-50 text-gray-400'],
+            unknown: ['無法判斷', 'bg-gray-50 text-gray-500'],
+            none: ['', '']
+        };
+
+        // 讀取原始欄位數值；空白或格式錯誤回傳 null，時間換算成秒
+        function parseMetric(row, key) {
+            const raw = row ? row[key] : '';
+            if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+            if (METRIC_BY_KEY[key] && METRIC_BY_KEY[key].type === 'time') {
+                const match = /^(\d+):([0-5]?\d)$/.exec(String(raw).trim());
+                return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+            }
+            const value = parseFloat(String(raw).replace(/NT\$|[%,\s]/g, ''));
+            return isNaN(value) ? null : value;
+        }
+
+        function metricValue(row, m) {
+            if (!row) return null;
+            return m.calc ? m.calc(row) : parseMetric(row, m.key);
+        }
+
+        function averageOf(records, m) {
+            const values = records.map(r => metricValue(r, m)).filter(v => v !== null);
+            return values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
+        }
+
+        function fmtMetric(value, m) {
+            switch (m.type) {
+                case 'pct': return `${value.toFixed(1)}%`;
+                case 'money': return `NT$ ${fmt(Math.abs(value) < 100 ? Math.round(value * 10) / 10 : Math.round(value))}`;
+                case 'time': return `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, '0')}`;
+                case 'ratio': return `${value.toFixed(2)}x`;
+                default: return fmt(Math.round(value));
+            }
+        }
+
+        function thresholdText(cfg, unit) {
+            const up = cfg.dir !== 'down';
+            return `${up ? '≥' : '≤'} ${cfg.good}${unit} 良好、${up ? '<' : '>'} ${cfg.bad}${unit} 待加強`;
+        }
+
+        // 依 C 混合判斷方式評分：參考標準 / 與品牌平均比 / 佔客單價比例
+        function rateMetric(m, records, idx, brand = currentBrand) {
+            const row = records[idx];
+            const value = metricValue(row, m);
+            if (value === null) return { level: 'na', value, note: '' };
+            const cfg = effectiveKpi(m.key, brand);
+            const good = parseFloat(cfg.good), bad = parseFloat(cfg.bad);
+            if (cfg.method === 'none' || isNaN(good) || isNaN(bad)) return { level: 'none', value, note: '' };
+
+            let score, note, unit = '%';
+            if (cfg.method === 'benchmark') {
+                score = value;
+                unit = m.type === 'pct' ? '%' : m.type === 'ratio' ? 'x' : ` ${m.unit}`;
+                note = '參考標準';
+            } else if (cfg.method === 'brandAvg') {
+                const values = records.map(r => metricValue(r, m)).filter(v => v !== null);
+                const avg = values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+                if (values.length < 2 || !avg) return { level: 'unknown', value, note: '資料月份不足，無法與品牌平均比較' };
+                score = (value - avg) / avg * 100;
+                note = `比品牌 ${values.length} 個月平均${score >= 0 ? '高' : '低'} ${Math.abs(score).toFixed(0)}%`;
+            } else {
+                const aovValue = metricValue(row, AOV_METRIC) || averageOf(records, AOV_METRIC);
+                if (!aovValue) return { level: 'unknown', value, note: '缺客單價資料（官網營收、訂單數），無法判斷' };
+                score = value / aovValue * 100;
+                note = `佔客單價 ${score.toFixed(1)}%`;
+            }
+            const level = cfg.dir !== 'down'
+                ? (score >= good ? 'good' : score < bad ? 'bad' : 'mid')
+                : (score <= good ? 'good' : score > bad ? 'bad' : 'mid');
+            return { level, value, note: `${note}；${thresholdText(cfg, unit)}` };
+        }
+
+        // 與前月比較；越低越好的指標 (CPC、CPA、退款) 下降顯示為綠色
+        function changeText(m, records, idx) {
+            const value = metricValue(records[idx], m);
+            if (value === null) return { text: '本月未填寫', cls: 'text-gray-400' };
+            const prev = idx > 0 ? metricValue(records[idx - 1], m) : null;
+            if (prev === null) return { text: idx > 0 ? '前月無資料' : '只有一個月資料', cls: 'text-gray-400' };
+            const diff = value - prev;
+            // 百分比指標看「個百分點」差距，其他指標看變化幅度；四捨五入後為 0 視為持平
+            const size = m.type === 'pct' ? Math.abs(diff) : prev ? Math.abs(diff / prev * 100) : Infinity;
+            if (size < 0.05) return { text: '與前月持平', cls: 'text-gray-500' };
+            const arrow = diff > 0 ? '▲' : '▼';
+            const digits = size < 1 ? 1 : 0;
+            const text = m.type === 'pct'
+                ? `${arrow} ${size.toFixed(1)} 個百分點 vs 前月`
+                : prev ? `${arrow} ${size.toFixed(digits)}% vs 前月` : `${arrow} vs 前月`;
+            const cfg = effectiveKpi(m.key);
+            if (cfg.method === 'none') return { text, cls: 'text-gray-500' };
+            const better = (cfg.dir !== 'down') === (diff > 0);
+            return { text: text + (cfg.dir === 'down' ? '（越低越好）' : ''), cls: better ? 'text-emerald-600' : 'text-amber-600' };
+        }
+
+        // 花費卡片：用「花費 ÷ 點擊」「花費 ÷ 轉換」核對填寫的 CPC / CPA，差距超過 10% 標示
+        function costCheckText(m, row) {
+            const prefix = { Meta_花費: 'Meta', TikTok_花費: 'TikTok' }[m.key];
+            const spend = prefix ? parseMetric(row, m.key) : null;
+            if (spend === null) return '';
+            const parts = [['點擊數', 'CPC'], ['轉換數', 'CPA']].map(([countName, rateName]) => {
+                const count = parseMetric(row, `${prefix}_${countName}`);
+                const reported = parseMetric(row, `${prefix}_${rateName}`);
+                if (!count) return '';
+                const calc = spend / count;
+                const off = reported !== null && reported !== 0 && Math.abs(calc - reported) / reported > 0.1;
+                const suffix = reported === null ? '' : off ? ` ≠ 填寫 ${reported}` : ' ✓';
+                return `<span class="${off ? 'text-amber-600' : 'text-gray-500'}">${rateName} ${calc.toFixed(1)}${suffix}</span>`;
+            }).filter(Boolean);
+            return parts.length ? `<br>核對：${parts.join('、')}` : '';
+        }
+
+        function detailCard(m, records, idx) {
+            const rating = rateMetric(m, records, idx);
+            const [label, badgeCls] = LEVELS[rating.level];
+            const change = changeText(m, records, idx);
+            const value = rating.value;
+            return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col">
+                <div class="flex items-start justify-between gap-2">
+                    <span class="text-xs font-semibold text-gray-600">${esc(m.name)}</span>
+                    ${label ? `<span class="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${badgeCls}">${label}</span>` : ''}
+                </div>
+                <div class="text-2xl font-bold mt-1 ${value === null ? 'text-gray-300' : 'text-gray-900'}">${value === null ? '—' : fmtMetric(value, m)}</div>
+                <div class="text-xs mt-1 ${change.cls}">${change.text}</div>
+                <div class="text-xs text-gray-400 mt-2 leading-relaxed">${esc(m.desc)}${rating.note ? `<br><span class="text-gray-500">${esc(rating.note)}</span>` : ''}${costCheckText(m, records[idx])}</div>
+            </div>`;
+        }
+
+        function renderDetailSection() {
+            const records = brandStore[currentBrand] ? brandStore[currentBrand].records : [];
+            const idx = records.length - 1;
+            document.getElementById('detailTabs').innerHTML = PLATFORMS.map(p => {
+                const badCount = CARD_METRICS.filter(m => m.platform === p && rateMetric(m, records, idx).level === 'bad').length;
+                const badge = badCount ? ` <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700" title="待加強指標數">${badCount}</span>` : '';
+                return `<button onclick="detailPlatform='${p}'; renderDetailSection()" class="${tabClass(p === detailPlatform)}">${p}${badge}</button>`;
+            }).join('');
+            document.getElementById('detailCards').innerHTML = CARD_METRICS
+                .filter(m => m.platform === detailPlatform)
+                .map(m => detailCard(m, records, idx))
+                .join('');
+        }
+
+        function drawCpaChart(labels, metaData, tiktokData) {
+            const ctx = document.getElementById('cpaChart').getContext('2d');
+            if(cpaChartInstance) cpaChartInstance.destroy();
+            cpaChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Meta CPA (NT$)', data: metaData, borderColor: '#1877F2', backgroundColor: 'transparent', tension: 0.3, borderWidth: 3, spanGaps: true },
+                        { label: 'TikTok CPA (NT$)', data: tiktokData, borderColor: '#000000', backgroundColor: 'transparent', borderDash: [5, 5], tension: 0.3, borderWidth: 3, spanGaps: true }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function drawCtrChart(meta, tiktok, yt) {
+            const ctx = document.getElementById('ctrChart').getContext('2d');
+            if(ctrChartInstance) ctrChartInstance.destroy();
+            ctrChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [['Meta (FB/IG)', meta], ['TikTok', tiktok], ['YouTube', yt]]
+                        .map(([name, v]) => v === null ? `${name} (未填)` : name),
+                    datasets: [{
+                        label: '點擊率 (%)',
+                        data: [meta, tiktok, yt],
+                        backgroundColor: ['#1877F2', '#000000', '#FF0000'],
+                        borderRadius: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // ===== AI 報告 =====
+        // monthly：比較兩個月份 (預設最後 2 個月)；overall：一段期間的整體走勢 (預設全部月份)
+        // 月份由使用者在 AI 區塊或左側欄選擇，a / b 為「比較月份 / 本月」或「起始月份 / 結束月份」
+        const REPORT_TYPES = {
+            monthly: { name: '近 2 月比較報告', labels: ['比較月份', '本月'] },
+            overall: { name: '整體營運報告', labels: ['起始月份', '結束月份'] }
+        };
+        let currentReport = 'monthly';
+        let reportSelection = { monthly: {}, overall: {} };
+
+        function currentMonths() {
+            return brandStore[currentBrand] ? brandStore[currentBrand].records.map(r => r['月份']) : [];
+        }
+
+        // 取得目前選取的月份；沒選過或月份已不存在時用預設值
+        function getReportSelection(type) {
+            const months = currentMonths();
+            const last = months[months.length - 1];
+            const defaults = type === 'monthly'
+                ? { a: months.length > 1 ? months[months.length - 2] : last, b: last }
+                : { a: months[0], b: last };
+            const chosen = reportSelection[type];
+            return {
+                a: months.includes(chosen.a) ? chosen.a : defaults.a,
+                b: months.includes(chosen.b) ? chosen.b : defaults.b
+            };
+        }
+
+        function setReportMonth(type, role, month) {
+            reportSelection[type] = { ...getReportSelection(type), [role]: month };
+            renderReportControls();
+        }
+
+        // 月份選單：AI 區塊與左側欄各一組，共用同一份選擇
+        function renderReportControls() {
+            const months = currentMonths();
+            const { a, b } = getReportSelection(currentReport);
+            const [labelA, labelB] = REPORT_TYPES[currentReport].labels;
+            const select = (role, value) => `<select onchange="setReportMonth(currentReport, '${role}', this.value)" class="border border-gray-300 rounded-md text-xs px-2 py-1.5 bg-white">
+                ${months.map(m => `<option value="${esc(m)}" ${m === value ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>`;
+            const html = `<label class="flex items-center gap-1.5 text-xs text-gray-600">${labelA} ${select('a', a)}</label>
+                <label class="flex items-center gap-1.5 text-xs text-gray-600">${labelB} ${select('b', b)}</label>`;
+            document.getElementById('reportControlsMain').innerHTML = html;
+            document.getElementById('reportControlsSide').innerHTML = html;
+            document.getElementById('sideReportType').value = currentReport;
+            updateReportScopeText();
+        }
+
+        // 提示詞中可用的標記，送出時換成實際內容 (提示詞可在「設定」修改)
+        const PROMPT_PLACEHOLDERS = ['品牌', '分析範圍', '第一個月', '前月', '本月', '月數', '歷史數據'];
+
+        function makeDefaultPrompt(v) {
+            return `【角色與任務】
+你是一位資深數位行銷策略顧問。請根據提供的{分析範圍}跨平台數據（Meta、TikTok、YouTube），撰寫一份「${v.title}」。
+報告對象為企業決策者與品牌主理人。請使用專業、客觀且具商業洞察力的語氣；全文不得使用「老闆」一詞。若部分欄位為空白，代表該平台未經營或數據未填寫，請依現有資料分析，並說明評估限制。
+【撰寫原則】
+
+1. 使用專業且易懂的商業用語作為章節標題。
+2. 全文以條列式呈現，依「數據觀察 → 白話解析 → 可能原因 → 建議」的順序分析，避免只列數字或冗長敘述。
+3. 僅根據提供的資料下結論。若資料不足以支持因果判斷，請將可能原因標示為推測，並說明仍需哪些資料驗證。
+4. 比較不同平台時，清楚標示平台與指標；不可直接比較定義或計算方式不同的指標。
+5. 趨勢判讀${v.trendRule}
+6. 若指標缺漏、平台未經營，或缺少轉換、營收等資料，請說明對判讀的限制，不得推估未提供的數值。
+
+【排版與閱讀要求】
+
+1. 使用繁體中文（zh-TW），語氣專業、客觀、精簡，讓非行銷背景的決策者也能理解。
+2. 依下列 5 個模組及順序撰寫，使用 Markdown 標題。
+3. 每個分析模組依序使用「數據觀察」、「白話解析」、「可能原因」、「建議」作為小標。
+4. 第五部分是整體匯總的行動方案，不需再重複前四部分的分析格式。
+5. 每個小標下若有多個重點，請拆成 \`1.\`、\`2.\`、\`3.\` 的編號條列；每點只說明一個重點，避免用分號串接多項內容。
+6. 優先引用關鍵數據與趨勢，避免堆疊數字或重複描述。
+
+一、整體營運健康度與趨勢總結
+
+* ${v.overviewItem}
+* ${v.highlightItem}
+* 說明缺漏或未經營的平台對整體判讀的影響，並提出資料補強方向。
+
+二、素材吸睛度與內容留存力分析
+
+* 前端吸睛力： 分析 Meta、TikTok 的點擊率與 3 秒觀看，以及 YouTube 曝光點擊率。
+* 內容留存力： 分析各平台提供的完整觀看率、ThruPlay、平均觀看時間、觀眾續看率或保留率。
+* 解讀素材、標題、縮圖與影片開場是否能吸引受眾停留或點擊，並判斷內容是否能留住觀眾。
+* 若前端吸睛力與觀看留存表現不一致，說明可能的落差及待驗證原因。
+
+三、社群共鳴度與高價值互動診斷
+
+* 分析珍藏、分享、Threads 回覆、轉發與引用等深度互動指標的表現與趨勢。
+* 說明珍藏可能反映內容的實用或參考價值；分享與轉發可能反映社交傳播價值；回覆與引用可用來觀察討論意願。
+* 將觸及或觀看與深度互動一起觀察，評估內容是否帶動有意義的參與。
+* 若缺少粉絲、互動率或轉換資料，不得直接判定受眾是忠實粉絲或無效流量，並說明判讀限制。
+
+四、跨平台導流與轉換成本效益評估
+
+* ${v.cpcItem}
+* ${v.cpaItem}
+* 結合已提供的點擊、互動與觀看指標，提出成本變化的可能解讀；若缺少轉換量、轉換率、營收或歸因資料，請明確說明無法確認原因或實際投資效益。
+* 提出有數據依據的預算調整方向。資料不足時，建議先小規模測試或逐步調整，不得提出無依據的預算比例。
+
+五、下階段內容優化與行動方案
+根據前四部分的診斷，提出整體匯總的行動建議。每項建議須簡潔、具體，並與前述數據發現相互對應。
+
+* 立即行動： 說明下階段應優先啟動的內容、素材或數據補強工作。
+* 立即止損： 指出應暫停、減少或先縮小測試規模的低效內容、素材或投放。
+* 擴大優勢： 說明如何延續並逐步放大目前表現較佳的平台、內容或互動模式。
+
+【輸出前檢查】
+
+1. 是否每個分析模組都包含「數據觀察、白話解析、可能原因、建議」。
+2. 是否清楚區分數據事實與原因推測。
+3. 是否說明資料缺漏造成的判讀限制。
+4. 第五部分是否只提供整體匯總的行動方案，未重複前述分析。
+5. 多個重點是否以 \`1.\`、\`2.\`、\`3.\` 分開列出，而非用分號串接。
+
+【選填欄位說明】
+以下欄位可能部分月份空白，空白時依上述原則說明判讀限制即可：
+1. Meta_花費、TikTok_花費、Meta_點擊數、TikTok_點擊數、Meta_轉換數、TikTok_轉換數：可用於核對 CPC（花費 ÷ 點擊數）與 CPA（花費 ÷ 轉換數），若與填寫的 CPC、CPA 不一致請指出。
+2. 官網_訂單數、官網_營收、官網_退款筆數、官網_退款金額：來自官網或電商訂單系統，包含自然流量訂單，可用於評估整體 ROAS（營收 ÷ 廣告花費）、客單價與退款率，但不可直接視為廣告歸因營收。
+
+【歷史數據】
+（欄位名稱括號內為單位，百分比欄位的數值已是百分比，例如 3.5 代表 3.5%）
+{歷史數據}`;
+        }
+
+        const DEFAULT_PROMPTS = {
+            monthly: makeDefaultPrompt({
+                title: '{前月}與{本月}行銷成效比較與行動方案報告',
+                trendRule: '以{本月}作為本月，與比較月份{前月}逐項比較變化方向與幅度。僅比較 2 個月資料，不得推論長期趨勢。',
+                overviewItem: '判斷本月相較前月，品牌觸及、觀看、互動與轉換成本的變化方向，並說明判定依據。',
+                highlightItem: '指出本月 1 至 2 項變化最大或最值得關注的數據，解讀其可能反映的受眾或市場狀況，以及對生意的影響。',
+                cpcItem: '比較 Meta 與 TikTok 的 CPC 水準及本月相較前月的變化，評估目前的點擊成本效率。',
+                cpaItem: '分析各平台 CPA 本月相較前月的變化。'
+            }),
+            overall: makeDefaultPrompt({
+                title: '整體營運成效與行動方案報告',
+                trendRule: '以第一筆資料（{第一個月}）為起點、最後一筆（{本月}）為本月，判讀整段期間的整體走勢、高低點與轉折，並以本月對照整段期間的平均水準。',
+                overviewItem: '判斷{第一個月}至{本月}品牌觸及、觀看、互動與轉換成本的整體走向，指出期間內的高峰、低點或轉折月份，並說明判定依據。',
+                highlightItem: '指出整段期間 1 至 2 項最值得關注的數據變化，解讀其可能反映的受眾或市場狀況，以及對生意的影響。',
+                cpcItem: '比較 Meta 與 TikTok 的 CPC 水準及整段期間的趨勢，評估目前的點擊成本效率。',
+                cpaItem: '分析各平台 CPA 在整段期間的趨勢，以及本月相對整段期間的水準。'
+            })
+        };
+
+        // 取得報告要分析的資料與月份範圍；選擇不合理時回傳 error
+        function getReportContext(type = currentReport) {
+            const records = allData.filter(d => d['品牌'] === currentBrand);
+            const months = records.map(d => d['月份']);
+            const { a, b } = getReportSelection(type);
+            const ia = months.indexOf(a), ib = months.indexOf(b);
+            let brandData = [], error = '';
+            if (type === 'monthly') {
+                if (months.length < 2) error = '這個品牌只有 1 個月份資料，至少需要 2 個月才能比較。';
+                else if (ia === ib) error = '請選擇兩個不同的月份。';
+                else if (ia > ib) error = '比較月份需早於本月。';
+                else brandData = [records[ia], records[ib]];
+            } else if (ia > ib) {
+                error = '起始月份不能晚於結束月份。';
+            } else {
+                brandData = records.slice(ia, ib + 1);
+            }
+            const n = brandData.length;
+            const first = n ? brandData[0]['月份'] : '';
+            const last = n ? brandData[n - 1]['月份'] : '';
+            const prev = type === 'monthly' ? first : (n > 1 ? brandData[n - 2]['月份'] : '無前月資料');
+            const scope = !n ? '' : type === 'monthly'
+                ? `${first}與${last}（2 個月比較）`
+                : `${first}至${last}（共 ${n} 個月）`;
+            return { brandData, n, first, prev, last, scope, error };
+        }
+
+        // 建立 AI 診斷 Prompt 字串
+        function buildPromptText(type = currentReport) {
+            const r = getReportContext(type);
+            // 送給 AI 的數據：欄位名稱附上單位，空白代表未填寫
+            const rows = r.brandData.map(d => {
+                const row = { 月份: d['月份'] };
+                METRICS.forEach(m => { row[`${m.key}（${m.unit}）`] = d[m.key] || ''; });
+                return row;
+            });
+            const values = {
+                品牌: currentBrand, 分析範圍: r.scope, 第一個月: r.first, 前月: r.prev, 本月: r.last,
+                月數: String(r.n), 歷史數據: JSON.stringify(rows, null, 2)
+            };
+            let template = (settings && settings.prompts[type]) || DEFAULT_PROMPTS[type];
+            if (!template.includes('{歷史數據}')) template += '\n\n【歷史數據】\n{歷史數據}';
+            return template.replace(new RegExp(`\\{(${PROMPT_PLACEHOLDERS.join('|')})\\}`, 'g'), (_, k) => values[k]);
+        }
+
+        // 免 API 備案：一鍵複製 Prompt
+        async function copyAiPrompt() {
+            const { error } = getReportContext();
+            if (error) {
+                showToast(error, 'error');
+                return;
+            }
+            const promptText = buildPromptText();
+            try {
+                await navigator.clipboard.writeText(promptText);
+            } catch (e) {
+                // 舊瀏覽器或 file:// 不支援 Clipboard API 時的備案
+                const tempInput = document.createElement('textarea');
+                tempInput.value = promptText;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+            }
+
+            const feedback = document.getElementById('copyFeedback');
+            feedback.classList.remove('hidden');
+            setTimeout(() => feedback.classList.add('hidden'), 3000);
+        }
+
+        // ===== Gemini 模型與 API Key =====
+        function removeLocal(key) {
+            try { localStorage.removeItem(key); } catch (e) { /* 無法存取時略過 */ }
+        }
+
+        function cleanModelName(value) {
+            return value.trim().replace(/^models\//, '');
+        }
+
+        // 載入上次使用的模型；Key 只有勾選「記住 Key」時才保存
+        function initAiConfig() {
+            const keyInput = document.getElementById('customApiKey');
+            const modelInput = document.getElementById('geminiModel');
+            const remember = document.getElementById('rememberApiKey');
+            modelInput.value = loadLocal(AI_STORAGE_KEYS.model) || DEFAULT_GEMINI_MODEL;
+            const savedKey = loadLocal(AI_STORAGE_KEYS.apiKey);
+            if (savedKey) {
+                keyInput.value = savedKey;
+                remember.checked = true;
+            }
+            modelInput.addEventListener('change', () => saveLocal(AI_STORAGE_KEYS.model, cleanModelName(modelInput.value)));
+            const syncKey = () => {
+                if (remember.checked && keyInput.value.trim()) saveLocal(AI_STORAGE_KEYS.apiKey, keyInput.value.trim());
+                else removeLocal(AI_STORAGE_KEYS.apiKey);
+            };
+            keyInput.addEventListener('change', syncKey);
+            remember.addEventListener('change', syncKey);
+            document.getElementById('geminiModelSelect').addEventListener('change', e => {
+                if (!e.target.value) return;
+                modelInput.value = e.target.value;
+                modelInput.dispatchEvent(new Event('change'));
+                setModelHint(`已改用「${e.target.value}」。`, 'text-emerald-600');
+            });
+        }
+
+        function setModelHint(text, cls = 'text-gray-400') {
+            const hint = document.getElementById('modelHint');
+            hint.textContent = text;
+            hint.className = `text-[11px] mt-1 ${cls}`;
+        }
+
+        // 讀取並檢查左側的 API Key 與模型名稱 (兩者都必填)
+        function readAiConfig() {
+            const apiKey = document.getElementById('customApiKey').value.trim();
+            const model = cleanModelName(document.getElementById('geminiModel').value);
+            if (!apiKey) return { error: '請先在左側填入 Gemini API Key（可至 Google AI Studio 免費申請），或改用「複製 AI 診斷指令」。' };
+            if (!model) return { error: '請先在左側填入 Gemini 模型名稱，或按「查詢可用」選一個。' };
+            if (!/^[\w.-]+$/.test(model)) return { error: `模型名稱「${model}」格式不正確，只能包含英文、數字、-、. 和 _。` };
+            return { apiKey, model };
+        }
+
+        // 用 API Key 查詢目前可用、支援產生內容的模型，列在模型欄位下方讓使用者挑選
+        async function fetchGeminiModels() {
+            const apiKey = document.getElementById('customApiKey').value.trim();
+            if (!apiKey) {
+                showToast('請先填入 API Key 再查詢模型。', 'error');
+                return;
+            }
+            const btn = document.getElementById('fetchModelsBtn');
+            btn.disabled = true;
+            btn.textContent = '查詢中…';
+            try {
+                const models = [];
+                let pageToken = '';
+                do {
+                    const url = 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000' + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+                    const response = await fetch(url, { headers: { 'x-goog-api-key': apiKey } });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error((result.error && result.error.message) || `HTTP ${response.status}`);
+                    (result.models || []).forEach(m => {
+                        if ((m.supportedGenerationMethods || []).includes('generateContent')) {
+                            models.push({ id: cleanModelName(m.name), label: m.displayName || '' });
+                        }
+                    });
+                    pageToken = result.nextPageToken || '';
+                } while (pageToken);
+
+                const current = cleanModelName(document.getElementById('geminiModel').value);
+                const select = document.getElementById('geminiModelSelect');
+                select.innerHTML = `<option value="">選擇其他模型（共 ${models.length} 個）</option>` +
+                    models.map(m => `<option value="${esc(m.id)}" ${m.id === current ? 'selected' : ''}>${esc(m.id)}${m.label ? `（${esc(m.label)}）` : ''}</option>`).join('');
+                select.classList.remove('hidden');
+                if (models.some(m => m.id === current)) setModelHint(`目前的模型「${current}」可以使用。`, 'text-emerald-600');
+                else setModelHint(`目前的模型「${current}」不在可用清單中，請從下拉選單換一個。`, 'text-amber-600');
+            } catch (e) {
+                showToast(`查詢模型失敗：${e.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '查詢可用';
+            }
+        }
+
+        // AI API 整合
+        async function generateAIInsights() {
+            const btn = document.getElementById('generateAiBtn');
+            // 記下送出當下的報告類型與品牌，回應回來時寫回對應的區塊
+            const reportType = currentReport;
+            const requestBrand = currentBrand;
+            const outputDiv = document.getElementById(`aiOutput-${reportType}`);
+            const showAiError = message => showAiErrorIn(outputDiv, message);
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 深度診斷中...';
+            btn.disabled = true;
+            outputDiv.innerHTML = `<div class="flex flex-col items-center justify-center h-32 text-indigo-600"><i class="fa-solid fa-brain fa-bounce text-2xl mb-2"></i><span>正在產出「${REPORT_TYPES[reportType].name}」...</span></div>`;
+
+            const context = getReportContext(reportType);
+            const { apiKey, model, error } = readAiConfig();
+            if (context.error || error) {
+                showAiError(context.error || error);
+                resetAiButton();
+                return;
+            }
+            const fullPrompt = buildPromptText(reportType);
+
+            // Key 用標頭傳送，避免出現在網址
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: fullPrompt }] }]
+                    })
+                });
+                const result = await response.json().catch(() => ({}));
+                if (currentBrand !== requestBrand) return; // 等待期間已切換品牌，捨棄舊結果
+
+                if (!response.ok) {
+                    const apiMsg = result.error && result.error.message ? result.error.message : response.statusText;
+                    let hint = '';
+                    if (response.status === 400 || response.status === 401 || response.status === 403) hint = '請確認 API Key 是否正確、是否已啟用 Gemini API。';
+                    else if (response.status === 404) hint = `模型「${model}」可能已下架或改名，請在左側按「查詢可用」換一個模型。`;
+                    else if (response.status === 429) hint = '已超過使用額度或請求太頻繁，請稍後再試。';
+                    showAiError(`API 呼叫失敗 (HTTP ${response.status})：${apiMsg}\n${hint}`);
+                    return;
+                }
+
+                const candidate = result.candidates && result.candidates[0];
+                const text = candidate && candidate.content && candidate.content.parts
+                    ? candidate.content.parts.map(p => p.text || '').join('')
+                    : '';
+                if (!text) {
+                    const reason = (result.promptFeedback && result.promptFeedback.blockReason) || (candidate && candidate.finishReason) || '未知原因';
+                    showAiError(`AI 沒有回傳內容（原因：${reason}）。可再試一次，或改用「複製 AI 診斷指令」。`);
+                    return;
+                }
+                // 標示這份報告的分析範圍，之後改選月份也看得出報告是針對哪段期間
+                outputDiv.innerHTML = `<p class="not-prose text-xs text-indigo-500 mb-2">${esc(requestBrand)}・${esc(context.scope)}</p>`
+                    + DOMPurify.sanitize(marked.parse(text));
+            } catch (e) {
+                if (currentBrand === requestBrand) showAiError(`連線發生錯誤：${e.message}`);
+            } finally {
+                resetAiButton();
+            }
+        }
+
+        // 以純文字顯示錯誤訊息 (避免將外部內容當成 HTML 執行)
+        function showAiErrorIn(outputDiv, message) {
+            const div = document.createElement('div');
+            div.className = 'text-red-500 text-sm whitespace-pre-line';
+            div.textContent = message + '\n\n若無法使用 API，可點選左側「複製 AI 診斷指令」貼至 ChatGPT / Gemini 使用。';
+            outputDiv.innerHTML = '';
+            outputDiv.appendChild(div);
+        }
+
+        function resetAiButton() {
+            const btn = document.getElementById('generateAiBtn');
+            btn.innerHTML = '<i class="fa-solid fa-robot"></i> 產出 AI 報告 (API)';
+            btn.disabled = false;
+        }
+
+        // 切換報告類型：顯示對應的結果區塊，左側按鈕改為產出/複製該報告
+        function switchReport(type) {
+            currentReport = type;
+            document.querySelectorAll('.report-tab').forEach(tab => {
+                const active = tab.dataset.reportTab === type;
+                tab.classList.toggle('bg-indigo-600', active);
+                tab.classList.toggle('text-white', active);
+                tab.classList.toggle('text-indigo-700', !active);
+                tab.classList.toggle('hover:bg-indigo-50', !active);
+            });
+            document.querySelectorAll('.ai-output').forEach(div => {
+                div.classList.toggle('hidden', div.dataset.report !== type);
+            });
+            renderReportControls();
+        }
+
+        function updateReportScopeText() {
+            const r = getReportContext();
+            const text = r.error || (r.n ? `分析範圍：${r.scope}` : '');
+            const cls = `text-xs ${r.error ? 'text-amber-600' : 'text-indigo-700'}`;
+            ['reportScopeText', 'reportScopeSide'].forEach(id => {
+                const el = document.getElementById(id);
+                el.textContent = text;
+                el.className = cls;
+            });
+        }
+
+        // 清空兩份報告的結果 (切換品牌或匯入新資料時)
+        function resetAiOutputs() {
+            Object.keys(REPORT_TYPES).forEach(type => {
+                document.getElementById(`aiOutput-${type}`).innerHTML =
+                    `<div class="flex items-center justify-center h-full text-gray-400 italic">點擊左側按鈕產出「${REPORT_TYPES[type].name}」...</div>`;
+            });
+        }
+
+        // ===== 填表畫面 (指標為列、月份為欄) =====
+        let editorPlatform = 'Meta';
+        const CELL_PATTERNS = {
+            int: /^-?\d+(\.\d+)?$/, money: /^-?\d+(\.\d+)?$/, pct: /^-?\d+(\.\d+)?$/, time: /^\d+:[0-5]?\d$/
+        };
+
+        function renderEditor() {
+            const brand = brandStore[currentBrand];
+            document.getElementById('editorBrandName').textContent = currentBrand;
+            document.getElementById('editorTabs').innerHTML = PLATFORMS.map(p =>
+                `<button onclick="editorPlatform='${p}'; renderEditor()" class="${tabClass(p === editorPlatform)}">${p} <span class="opacity-60">(${METRICS.filter(m => m.platform === p).length})</span></button>`
+            ).join('');
+
+            const records = brand ? brand.records : [];
+            const metrics = METRICS.filter(m => m.platform === editorPlatform);
+            let html = `<table class="min-w-full text-sm border-collapse"><thead><tr class="text-left text-xs text-gray-500">
+                <th class="sticky left-0 z-10 bg-white py-2 pr-3 font-medium min-w-[9rem]">指標</th>
+                <th class="py-2 pr-3 font-medium min-w-[13rem]">說明</th>
+                <th class="py-2 pr-3 font-medium">單位</th>`;
+            records.forEach((r, i) => {
+                html += `<th class="py-2 px-1 font-medium min-w-[7.5rem]"><div class="flex items-center gap-1">
+                    <input value="${esc(r['月份'])}" onchange="renameMonth(${i}, this)" title="點一下可修改月份名稱" class="w-20 border border-transparent hover:border-gray-300 focus:border-indigo-500 rounded px-1.5 py-1 font-semibold text-gray-800 outline-none">
+                    <button onclick="deleteMonth(${i})" title="刪除這個月份" aria-label="刪除這個月份" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+                </div></th>`;
+            });
+            html += '</tr></thead><tbody>';
+            metrics.forEach((m, row) => {
+                const optional = m.optional ? ' <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-normal">選填</span>' : '';
+                html += `<tr class="border-t border-gray-100">
+                    <td class="sticky left-0 z-10 bg-white py-1.5 pr-3 font-medium text-gray-800 whitespace-nowrap">${esc(m.name)}${optional}</td>
+                    <td class="py-1.5 pr-3 text-xs text-gray-500">${esc(m.desc)}</td>
+                    <td class="py-1.5 pr-3 text-xs text-gray-500 whitespace-nowrap">${esc(m.unit)}</td>`;
+                records.forEach((r, i) => {
+                    html += `<td class="py-1 px-1"><input data-key="${m.key}" data-month="${i}" data-row="${row}" value="${esc(r[m.key] || '')}" placeholder="${m.type === 'time' ? '0:00' : ''}" inputmode="${m.type === 'time' ? 'text' : 'decimal'}" class="editor-cell w-full border border-gray-200 rounded px-2 py-1.5 text-right outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200"></td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            const container = document.getElementById('editorTable');
+            container.innerHTML = html;
+            container.querySelectorAll('.editor-cell').forEach(validateCell);
+            updateEditorStatus();
+            updateClearDemoButton();
+        }
+
+        function isValidValue(m, value) {
+            const v = normalizeValue(m.key, value);
+            return !v || CELL_PATTERNS[m.type].test(v);
+        }
+
+        function validateCell(input) {
+            const ok = isValidValue(METRIC_BY_KEY[input.dataset.key], input.value);
+            input.classList.toggle('border-red-400', !ok);
+            input.classList.toggle('bg-red-50', !ok);
+        }
+
+        function handleCellInput(e) {
+            const input = e.target;
+            if (!input.classList.contains('editor-cell')) return;
+            validateCell(input);
+            brandStore[currentBrand].records[Number(input.dataset.month)][input.dataset.key] = normalizeValue(input.dataset.key, input.value);
+            markDataChanged();
+            updateEditorStatus();
+        }
+
+        // Enter 移到下一列同一個月份，方便連續輸入
+        function handleCellKeydown(e) {
+            if (e.key !== 'Enter' || !e.target.classList.contains('editor-cell')) return;
+            e.preventDefault();
+            const { month, row } = e.target.dataset;
+            const next = document.querySelector(`#editorTable .editor-cell[data-month="${month}"][data-row="${Number(row) + (e.shiftKey ? -1 : 1)}"]`);
+            if (next) { next.focus(); next.select(); }
+        }
+
+        function updateEditorStatus() {
+            const records = brandStore[currentBrand] ? brandStore[currentBrand].records : [];
+            const invalid = [];
+            records.forEach(r => METRICS.forEach(m => { if (!isValidValue(m, r[m.key])) invalid.push(`${r['月份']} ${m.platform} ${m.name}`); }));
+            const status = document.getElementById('editorStatus');
+            status.innerHTML = invalid.length
+                ? `<span class="text-red-600"><i class="fa-solid fa-triangle-exclamation"></i> 有 ${invalid.length} 格格式不正確（紅框），儀表板會視為未填：${esc(invalid.slice(0, 3).join('、'))}${invalid.length > 3 ? '…' : ''}</span>`
+                : '<i class="fa-solid fa-check text-emerald-500"></i> 已自動保存在這個瀏覽器。要換電腦或備份，請「存成 JSON」。';
+        }
+
+        function nextMonthName(name) {
+            const match = /^(\d+)月$/.exec(name || '');
+            return match ? `${Number(match[1]) % 12 + 1}月` : '';
+        }
+
+        function checkMonthName(name, ignoreIndex = -1) {
+            if (!name) return '月份名稱不能空白。';
+            if (brandStore[currentBrand].records.some((r, i) => i !== ignoreIndex && r['月份'] === name)) return `已經有「${name}」這個月份。`;
+            return '';
+        }
+
+        function addMonth() {
+            const records = brandStore[currentBrand].records;
+            const suggestion = nextMonthName(records.length ? records[records.length - 1]['月份'] : '');
+            const input = prompt('新增月份名稱（例如 10月）', suggestion);
+            if (input === null) return;
+            const name = input.trim();
+            const error = checkMonthName(name);
+            if (error) { showToast(error, 'error'); return; }
+            records.push(makeRecord(name, {}));
+            markDataChanged();
+            renderEditor();
+            const table = document.getElementById('editorTable');
+            table.scrollLeft = table.scrollWidth;
+        }
+
+        function renameMonth(index, input) {
+            const name = input.value.trim();
+            const error = checkMonthName(name, index);
+            const record = brandStore[currentBrand].records[index];
+            if (error) {
+                showToast(error, 'error');
+                input.value = record['月份'];
+                return;
+            }
+            record['月份'] = name;
+            markDataChanged();
+            updateEditorStatus();
+        }
+
+        function deleteMonth(index) {
+            const records = brandStore[currentBrand].records;
+            if (records.length === 1) { showToast('每個品牌至少要保留一個月份。', 'error'); return; }
+            if (!confirm(`確定刪除「${records[index]['月份']}」整個月份的資料？`)) return;
+            records.splice(index, 1);
+            markDataChanged();
+            renderEditor();
+        }
+
+        function checkBrandName(name) {
+            if (!name) return '品牌名稱不能空白。';
+            if (brandStore[name]) return `已經有「${name}」這個品牌。`;
+            return '';
+        }
+
+        function addBrand() {
+            const input = prompt('新品牌名稱');
+            if (input === null) return;
+            const name = input.trim();
+            const error = checkBrandName(name);
+            if (error) { showToast(error, 'error'); return; }
+            brandStore[name] = { records: [makeRecord(`${new Date().getMonth() + 1}月`, {})], kpiOverrides: {} };
+            refreshBrandSelector(name);
+            markDataChanged();
+            renderCurrentView();
+        }
+
+        function renameBrand() {
+            const input = prompt('新的品牌名稱', currentBrand);
+            if (input === null || input.trim() === currentBrand) return;
+            const name = input.trim();
+            const error = checkBrandName(name);
+            if (error) { showToast(error, 'error'); return; }
+            // 重建物件以保留品牌順序
+            brandStore = Object.fromEntries(Object.entries(brandStore).map(([k, v]) => [k === currentBrand ? name : k, v]));
+            delete fileHandles[currentBrand];
+            refreshBrandSelector(name);
+            markDataChanged();
+            renderCurrentView();
+        }
+
+        function deleteBrand() {
+            if (Object.keys(brandStore).length === 1) { showToast('至少要保留一個品牌。', 'error'); return; }
+            if (!confirm(`確定刪除品牌「${currentBrand}」？瀏覽器中保存的這個品牌資料會被移除，建議先「存成 JSON」備份。`)) return;
+            delete brandStore[currentBrand];
+            delete fileHandles[currentBrand];
+            refreshBrandSelector();
+            markDataChanged();
+            renderCurrentView();
+        }
+
+        // 範例品牌 = 程式內建 defaultCsvData 裡的品牌 (依名稱判斷)
+        function demoBrandData() {
+            return parseCSVImport(defaultCsvData, '');
+        }
+
+        function updateClearDemoButton() {
+            const demo = demoBrandData();
+            document.getElementById('clearDemoBtn').classList.toggle('hidden', !Object.keys(brandStore).some(n => demo[n]));
+        }
+
+        // 一次刪除所有範例品牌；如果只剩範例品牌，先請使用者建立自己的品牌
+        function clearDemoBrands() {
+            const demo = demoBrandData();
+            const demoNames = Object.keys(brandStore).filter(n => demo[n]);
+            if (!demoNames.length) return;
+            const edited = demoNames.filter(n => JSON.stringify(brandStore[n].records) !== JSON.stringify(demo[n].records));
+            const editedNote = edited.length ? `\n\n注意：「${edited.join('、')}」有修改過的資料，也會一起刪除。` : '';
+            if (!confirm(`確定刪除以下 ${demoNames.length} 個範例品牌？\n${demoNames.join('、')}${editedNote}`)) return;
+
+            let newBrand = null;
+            if (Object.keys(brandStore).length === demoNames.length) {
+                const input = prompt('清除後至少要有一個品牌，請輸入你的品牌名稱', '我的品牌');
+                if (input === null) return;
+                newBrand = input.trim();
+                if (!newBrand || demo[newBrand]) {
+                    showToast(newBrand ? '請使用範例以外的品牌名稱。' : '品牌名稱不能空白。', 'error');
+                    return;
+                }
+            }
+            demoNames.forEach(n => { delete brandStore[n]; delete fileHandles[n]; });
+            if (newBrand) brandStore[newBrand] = { records: [makeRecord(`${new Date().getMonth() + 1}月`, {})], kpiOverrides: {} };
+            refreshBrandSelector(newBrand || Object.keys(brandStore)[0]);
+            markDataChanged();
+            persistBrands();
+            renderCurrentView();
+            showToast(`已清除 ${demoNames.length} 個範例品牌`);
+        }
+
+        // ===== 設定視窗 (KPI 標準 + AI 提示詞) =====
+        // 編輯時先改草稿，按「儲存」才套用；品牌自訂標準只記錄與共用標準不同的欄位
+        let settingsDraft = null;
+        let settingsTab = 'kpi';
+        let settingsScope = ''; // '' = 全部品牌共用，否則為品牌名稱
+
+        function openSettings() {
+            settingsDraft = {
+                kpi: clone(settings.kpi),
+                prompts: { ...settings.prompts },
+                overrides: Object.fromEntries(Object.entries(brandStore).map(([n, b]) => [n, clone(b.kpiOverrides || {})]))
+            };
+            settingsScope = '';
+            document.getElementById('settingsModal').classList.remove('hidden');
+            renderSettings();
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function switchSettingsTab(tab) {
+            settingsTab = tab;
+            renderSettings();
+        }
+
+        function renderSettings() {
+            document.querySelectorAll('[data-settings-tab]').forEach(b => { b.className = tabClass(b.dataset.settingsTab === settingsTab); });
+            document.getElementById('settingsKpiPane').classList.toggle('hidden', settingsTab !== 'kpi');
+            document.getElementById('settingsPromptPane').classList.toggle('hidden', settingsTab !== 'prompts');
+
+            const scopeSelect = document.getElementById('settingsScope');
+            scopeSelect.innerHTML = '<option value="">全部品牌（共用）</option>' + Object.keys(brandStore).map(n =>
+                `<option value="${esc(n)}">${esc(n)}${Object.keys(settingsDraft.overrides[n] || {}).length ? '（有自訂）' : ''}</option>`).join('');
+            scopeSelect.value = settingsScope;
+            document.getElementById('settingsScopeNote').textContent = settingsScope
+                ? '只有改過的格子會覆寫共用標準（以藍字標示），其他沿用共用值。品牌自訂標準也會一起存進這個品牌的 JSON 檔。'
+                : '所有品牌共用的標準。數值介於「良好」與「待加強」門檻之間為「普通」。「與品牌平均比」的門檻是差距百分比，「佔客單價比例」的門檻是佔客單價的百分比。';
+            document.querySelector('#settingsResetBtn span').textContent =
+                settingsTab === 'kpi' && settingsScope ? '清除此品牌的自訂標準' : '恢復預設值';
+
+            document.getElementById('promptMonthly').value = settingsDraft.prompts.monthly;
+            document.getElementById('promptOverall').value = settingsDraft.prompts.overall;
+            renderKpiTable();
+        }
+
+        function renderKpiTable() {
+            const overrides = settingsScope ? settingsDraft.overrides[settingsScope] || {} : {};
+            let html = `<table class="w-full text-sm"><thead><tr class="text-left text-xs text-gray-500">
+                <th class="py-2 pr-2 font-medium">指標</th><th class="py-2 pr-2 font-medium">判斷方式</th><th class="py-2 pr-2 font-medium">方向</th>
+                <th class="py-2 pr-2 font-medium">良好</th><th class="py-2 pr-2 font-medium">待加強</th></tr></thead><tbody>`;
+            PLATFORMS.forEach(p => {
+                html += `<tr><td colspan="5" class="pt-4 pb-1 text-xs font-bold text-gray-900">${p}</td></tr>`;
+                CARD_METRICS.filter(m => m.platform === p).forEach(m => {
+                    const base = settingsDraft.kpi[m.key] || NO_RATING;
+                    const own = overrides[m.key] || {};
+                    const val = f => (f in own ? own[f] : base[f]);
+                    const cls = f => (f in own ? 'text-indigo-600 font-semibold border-indigo-300 bg-indigo-50' : 'border-gray-200');
+                    const method = val('method'), dir = val('dir');
+                    const unit = method === 'benchmark' ? (m.type === 'pct' ? '%' : m.type === 'ratio' ? 'x' : m.unit) : '%';
+                    const off = method === 'none' ? 'disabled' : '';
+                    const methods = Object.entries(KPI_METHODS).filter(([k]) => k !== 'aovRatio' || m.type === 'money');
+                    html += `<tr class="border-t border-gray-100" data-key="${m.key}">
+                        <td class="py-1.5 pr-2 text-gray-800">${esc(m.name)}${m.calc ? ' <span class="text-[10px] text-gray-400">計算</span>' : ''}</td>
+                        <td class="py-1.5 pr-2"><select data-field="method" class="kpi-input border rounded px-1.5 py-1 text-xs ${cls('method')}">
+                            ${methods.map(([k, t]) => `<option value="${k}" ${k === method ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+                        <td class="py-1.5 pr-2"><select data-field="dir" ${off} class="kpi-input border rounded px-1.5 py-1 text-xs disabled:opacity-40 ${cls('dir')}">
+                            <option value="up" ${dir !== 'down' ? 'selected' : ''}>越高越好</option><option value="down" ${dir === 'down' ? 'selected' : ''}>越低越好</option></select></td>
+                        <td class="py-1.5 pr-2"><div class="flex items-center gap-1"><span class="text-xs text-gray-400 w-3">${dir === 'down' ? '≤' : '≥'}</span>
+                            <input data-field="good" value="${esc(val('good'))}" ${off} inputmode="decimal" class="kpi-input w-16 border rounded px-1.5 py-1 text-xs text-right disabled:opacity-40 ${cls('good')}"><span class="text-xs text-gray-400">${esc(unit)}</span></div></td>
+                        <td class="py-1.5 pr-2"><div class="flex items-center gap-1"><span class="text-xs text-gray-400 w-3">${dir === 'down' ? '>' : '<'}</span>
+                            <input data-field="bad" value="${esc(val('bad'))}" ${off} inputmode="decimal" class="kpi-input w-16 border rounded px-1.5 py-1 text-xs text-right disabled:opacity-40 ${cls('bad')}"><span class="text-xs text-gray-400">${esc(unit)}</span></div></td>
+                    </tr>`;
+                });
+            });
+            document.getElementById('kpiTable').innerHTML = html + '</tbody></table>';
+        }
+
+        // 寫入一個欄位：共用模式改共用標準；品牌模式只記錄與共用不同的值
+        function setKpiField(key, field, value) {
+            if (!settingsScope) {
+                settingsDraft.kpi[key] = { ...(settingsDraft.kpi[key] || NO_RATING), [field]: value };
+                return;
+            }
+            const overrides = settingsDraft.overrides[settingsScope] = settingsDraft.overrides[settingsScope] || {};
+            const own = { ...(overrides[key] || {}) };
+            if (String(value) === String((settingsDraft.kpi[key] || NO_RATING)[field])) delete own[field];
+            else own[field] = value;
+            if (Object.keys(own).length) overrides[key] = own;
+            else delete overrides[key];
+        }
+
+        // 切換判斷方式時，換成該方式的建議門檻 (避免沿用不同單位的數字)
+        function methodDefaults(key, method, dir) {
+            const d = DEFAULT_KPI[key];
+            if (d && d.method === method) return { good: d.good, bad: d.bad };
+            if (method === 'brandAvg') return dir === 'down' ? { good: -10, bad: 10 } : { good: 10, bad: -10 };
+            if (method === 'aovRatio') return { good: 3, bad: 8 };
+            return { good: '', bad: '' };
+        }
+
+        function handleKpiChange(e) {
+            const el = e.target;
+            if (!el.classList.contains('kpi-input')) return;
+            const key = el.closest('tr').dataset.key;
+            const field = el.dataset.field;
+            setKpiField(key, field, field === 'good' || field === 'bad' ? el.value.trim() : el.value);
+            if (field === 'method') {
+                const current = { ...(settingsDraft.kpi[key] || NO_RATING), ...((settingsScope && settingsDraft.overrides[settingsScope][key]) || {}) };
+                const defaults = methodDefaults(key, el.value, current.dir);
+                setKpiField(key, 'good', defaults.good);
+                setKpiField(key, 'bad', defaults.bad);
+            }
+            renderKpiTable();
+        }
+
+        function resetSettingsDefaults() {
+            if (settingsTab === 'prompts') settingsDraft.prompts = { ...DEFAULT_PROMPTS };
+            else if (settingsScope) settingsDraft.overrides[settingsScope] = {};
+            else settingsDraft.kpi = clone(DEFAULT_KPI);
+            renderSettings();
+        }
+
+        function saveSettings() {
+            settings = { kpi: settingsDraft.kpi, prompts: settingsDraft.prompts };
+            Object.entries(settingsDraft.overrides).forEach(([name, overrides]) => {
+                if (brandStore[name]) brandStore[name].kpiOverrides = overrides;
+            });
+            persistSettings();
+            persistBrands();
+            closeSettings();
+            renderDetailSection();
+            showToast('設定已儲存');
+        }
+
+        function exportSettings() {
+            const content = JSON.stringify({ format: 'nexus-settings', version: 1, kpi: settingsDraft.kpi, prompts: settingsDraft.prompts }, null, 2);
+            downloadFile('戰情室設定.json', content, 'application/json');
+        }
+
+        async function importSettingsFile(input) {
+            const file = input.files[0];
+            input.value = '';
+            if (!file) return;
+            try {
+                const obj = JSON.parse(await readFileText(file));
+                if (obj.format !== 'nexus-settings') throw new Error('不是本系統的設定檔。');
+                const merged = mergeSettings(obj);
+                settingsDraft.kpi = merged.kpi;
+                settingsDraft.prompts = merged.prompts;
+                renderSettings();
+                showToast(`已載入 ${file.name}，按「儲存」後套用`);
+            } catch (e) {
+                showToast(`${file.name} 無法載入：${e.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
