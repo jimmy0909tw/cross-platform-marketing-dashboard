@@ -144,7 +144,9 @@
                 <h2 id="dashboardTitle" class="text-2xl font-bold text-gray-900">品牌行銷成效總覽</h2>
                 <p class="text-sm text-gray-500 mt-1">最新結算月份：<span id="currentMonthText" class="font-bold text-brand-600">讀取中...</span></p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- 固定顯示、不能被關閉：就算所有項目都關掉，也能從這裡重新開啟 -->
+                <button onclick="openSettings('display')" class="btn-secondary"><i class="fa-solid fa-sliders"></i> 顯示設定</button>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"><i class="fa-brands fa-meta"></i> Meta</span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-800"><i class="fa-brands fa-tiktok"></i> TikTok</span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="fa-brands fa-youtube"></i> YouTube</span>
@@ -608,12 +610,13 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             document.querySelectorAll('[data-display]').forEach(el => el.classList.toggle('display-off', !isShown(el.dataset.display)));
             const kpiIds = DISPLAY_GROUPS[0].items.map(i => i.id);
             document.getElementById('kpiGrid').classList.toggle('display-off', !kpiIds.some(id => isShown(id)));
+            // 圖表全關時仍保留標題列與提示，讓使用者找得到重新開啟的地方
             const charts = DISPLAY_GROUPS.find(g => g.charts).items;
             const off = charts.filter(i => !isShown(i.id)).length;
-            document.getElementById('chartSection').classList.toggle('display-off', off === charts.length);
-            document.getElementById('chartHint').innerHTML = off
-                ? `另有 ${off} 張圖表未開啟，可在<button onclick="openSettings('display')" class="underline hover:text-gray-800 mx-0.5">顯示設定</button>開啟。`
-                : '';
+            const settingsLink = `<button onclick="openSettings('display')" class="underline hover:text-gray-800 mx-0.5">顯示設定</button>`;
+            document.getElementById('chartHint').innerHTML = off === charts.length
+                ? `<span class="block rounded-lg border border-dashed border-gray-300 bg-white py-6 text-center text-sm">圖表都已關閉，可在${settingsLink}開啟。</span>`
+                : off ? `另有 ${off} 張圖表未開啟，可在${settingsLink}開啟。` : '';
         }
 
         // 開關改變後重畫；不在儀表板頁時等切回來再畫 (隱藏中的圖表無法計算尺寸)
