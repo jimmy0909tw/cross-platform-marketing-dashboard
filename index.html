@@ -65,14 +65,21 @@
                 </select>
             </div>
 
-            <!-- 開啟資料檔 (CSV / JSON) -->
+            <!-- 資料夾自動儲存：填寫的資料自動存成 JSON，開啟網頁時自動讀取 -->
             <div class="mb-4 p-4 bg-brand-50 rounded-lg border border-brand-100">
                 <label class="block text-sm font-semibold text-brand-900 mb-2">
-                    <i class="fa-solid fa-folder-open mr-1"></i> 開啟資料檔
+                    <i class="fa-solid fa-folder-open mr-1"></i> 資料夾自動儲存
                 </label>
-                <button onclick="openDataFiles()" class="w-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold py-2 px-3 rounded-md transition-colors">選擇 CSV / JSON 檔</button>
+                <div id="folderStatus" class="text-xs text-brand-900 space-y-2 leading-relaxed"></div>
+            </div>
+
+            <!-- 匯入資料 (CSV / JSON) -->
+            <div class="mb-4">
+                <button onclick="importDataFiles()" class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm">
+                    <i class="fa-solid fa-file-import"></i> 匯入資料（CSV / JSON）
+                </button>
                 <input type="file" id="csvFileInput" accept=".csv,.json" multiple class="hidden">
-                <p class="text-xs text-brand-700 mt-2">一個品牌一個檔案，可一次選多個。也支援舊版多品牌 CSV，以及 Excel 存的 Big5 編碼 CSV。</p>
+                <p class="text-xs text-gray-500 mt-1.5">可一次匯入多個檔案，也支援舊版多品牌 CSV 與 Excel 存的 Big5 編碼 CSV。</p>
             </div>
 
             <!-- 設定 -->
@@ -270,8 +277,8 @@
             <div class="flex flex-col md:flex-row md:items-center gap-3 mt-4 pt-4 border-t border-gray-100">
                 <p id="editorStatus" class="text-xs text-gray-500 flex-1"></p>
                 <div class="flex gap-2">
-                    <button onclick="downloadBrandCSV()" class="btn-secondary"><i class="fa-solid fa-file-csv"></i> 下載 CSV</button>
-                    <button onclick="saveBrandJSON()" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-2 px-3 rounded-lg"><i class="fa-solid fa-floppy-disk"></i> 存成 JSON</button>
+                    <button onclick="downloadBrandCSV()" class="btn-secondary"><i class="fa-solid fa-file-csv"></i> 匯出 CSV</button>
+                    <button onclick="exportBrandJSON()" class="btn-secondary"><i class="fa-solid fa-file-export"></i> 匯出 JSON</button>
                 </div>
             </div>
         </div>
@@ -473,10 +480,9 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
 
         // ===== 品牌資料 =====
         // brandStore：{ 品牌名稱: { records: [{ 月份, 指標代碼: 值 }], kpiOverrides: { 指標代碼: { method, dir, good, bad } } } }
-        // 自動保存在瀏覽器 (localStorage)，也可存成一個品牌一個 JSON / CSV 檔
+        // 自動保存在瀏覽器 (localStorage)；連結資料夾後另外自動存成一個品牌一個 JSON 檔
         let brandStore = {};
         const STORAGE_KEYS = { brands: 'nexus.brands.v1', settings: 'nexus.settings.v1' };
-        const fileHandles = {}; // 存 JSON 時記住檔案位置，之後直接覆寫同一個檔 (Chrome / Edge)
         let dataVersion = 0;     // 資料每次變動 +1，用來判斷儀表板是否需要重畫
         let dashboardRenderedFor = '';
         let currentView = 'dashboard';
@@ -488,11 +494,18 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
         function saveLocal(key, value) {
             try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 無法保存時略過 */ }
         }
-        function persistBrands() { saveLocal(STORAGE_KEYS.brands, brandStore); }
+        function persistBrands() {
+            saveLocal(STORAGE_KEYS.brands, brandStore);
+            scheduleFolderSave();
+        }
         // 只保存改過的提示詞；沒改過的一律跟著程式內建的預設值 (預設值更新時自動套用)
-        function persistSettings() {
+        function settingsToSave() {
             const prompts = Object.fromEntries(Object.entries(settings.prompts).filter(([type, text]) => text !== DEFAULT_PROMPTS[type]));
-            saveLocal(STORAGE_KEYS.settings, { kpi: settings.kpi, prompts });
+            return { kpi: settings.kpi, prompts };
+        }
+        function persistSettings() {
+            saveLocal(STORAGE_KEYS.settings, settingsToSave());
+            scheduleFolderSave();
         }
 
         // 由 brandStore 重建儀表板使用的 allData (每列是一個品牌的一個月份)
@@ -509,7 +522,6 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             syncAllData();
             refreshBrandSelector(Object.keys(brandStore)[0]);
 
-            // 不支援檔案選取視窗 API 的瀏覽器改用一般的檔案上傳
             document.getElementById('csvFileInput').addEventListener('change', async function(e) {
                 await handleDataFiles([...e.target.files]);
                 e.target.value = ''; // 允許重新選擇同一個檔案
@@ -528,6 +540,7 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             initAiConfig();
 
             showView('dashboard');
+            initFolderSync(); // 先用瀏覽器內的資料顯示，連結的資料夾讀完後再更新
         };
 
         function refreshBrandSelector(selectName) {
@@ -726,22 +739,195 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             return loaded;
         }
 
-        // 開啟資料檔：Chrome / Edge 會記住 JSON 檔位置，之後「存成 JSON」直接覆寫原檔
-        async function openDataFiles() {
-            if (!window.showOpenFilePicker) {
-                document.getElementById('csvFileInput').click();
+        // 匯入 CSV / JSON：加入品牌清單 (連結資料夾時會自動另存成 JSON)
+        function importDataFiles() {
+            document.getElementById('csvFileInput').click();
+        }
+
+        // ===== 資料夾自動儲存 (Chrome / Edge) =====
+        // 選一次資料夾後：資料變動時自動把每個品牌存成「品牌名稱.json」、設定存成「戰情室設定.json」，
+        // 下次打開網頁自動從資料夾讀取。資料夾位置記在 IndexedDB；瀏覽器可能要求每次開啟時按一下授權。
+        const FOLDER_SUPPORTED = 'showDirectoryPicker' in window;
+        const SETTINGS_FILE = '戰情室設定.json';
+        let folderHandle = null;
+        let folderState = 'none'; // none 未連結 / needs-permission 待授權 / ready 已連結 / error 發生錯誤
+        let folderFiles = {};     // 品牌名稱 → 資料夾中的檔名，用來刪除已移除品牌的檔案
+        let folderSavedAt = null;
+        let folderSaveChain = Promise.resolve();
+
+        // localStorage 無法保存資料夾位置，改用 IndexedDB
+        function idbRequest(mode, action) {
+            return new Promise((resolve, reject) => {
+                const open = indexedDB.open('nexus-dashboard', 1);
+                open.onupgradeneeded = () => open.result.createObjectStore('handles');
+                open.onerror = () => reject(open.error);
+                open.onsuccess = () => {
+                    try {
+                        const tx = open.result.transaction('handles', mode);
+                        const request = action(tx.objectStore('handles'));
+                        tx.oncomplete = () => { open.result.close(); resolve(request.result); };
+                        tx.onerror = () => { open.result.close(); reject(tx.error); };
+                    } catch (e) {
+                        open.result.close();
+                        reject(e);
+                    }
+                };
+            });
+        }
+        const idbGet = key => idbRequest('readonly', store => store.get(key));
+        const idbSet = (key, value) => idbRequest('readwrite', store => store.put(value, key));
+        const idbDelete = key => idbRequest('readwrite', store => store.delete(key));
+
+        async function initFolderSync() {
+            if (FOLDER_SUPPORTED) {
+                try { folderHandle = await idbGet('dataFolder'); } catch (e) { folderHandle = null; }
+            }
+            if (!folderHandle) {
+                renderFolderStatus();
                 return;
             }
-            try {
-                const handles = await window.showOpenFilePicker({
-                    multiple: true,
-                    types: [{ description: '品牌資料 (CSV / JSON)', accept: { 'text/csv': ['.csv'], 'application/json': ['.json'] } }]
-                });
-                const loaded = await handleDataFiles(await Promise.all(handles.map(h => h.getFile())));
-                handles.forEach((h, i) => { if (loaded[i] && /\.json$/i.test(h.name)) fileHandles[loaded[i]] = h; });
-            } catch (e) {
-                if (e.name !== 'AbortError') document.getElementById('csvFileInput').click();
+            if (await folderHandle.queryPermission({ mode: 'readwrite' }) === 'granted') await loadFromFolder(false);
+            else {
+                folderState = 'needs-permission';
+                renderFolderStatus();
             }
+        }
+
+        // 第一次連結：資料夾內已有的品牌優先，瀏覽器裡其他品牌一併存進資料夾
+        async function chooseDataFolder() {
+            try {
+                folderHandle = await window.showDirectoryPicker({ id: 'nexus-data', mode: 'readwrite' });
+                await idbSet('dataFolder', folderHandle).catch(() => {});
+                await loadFromFolder(true);
+            } catch (e) {
+                if (e.name !== 'AbortError') showToast(`無法使用這個資料夾：${e.message}`, 'error');
+            }
+        }
+
+        // 瀏覽器要求使用者按一下，才能再次讀寫上次的資料夾
+        async function grantFolderPermission() {
+            if (!folderHandle) return;
+            if (await folderHandle.requestPermission({ mode: 'readwrite' }) === 'granted') await loadFromFolder(false);
+            else showToast('沒有取得資料夾權限，資料暫時只存在瀏覽器。', 'error');
+        }
+
+        async function disconnectFolder() {
+            if (!confirm('中斷後資料只會存在這個瀏覽器，資料夾裡的檔案會保留。確定中斷連結？')) return;
+            folderHandle = null;
+            folderState = 'none';
+            folderFiles = {};
+            await idbDelete('dataFolder').catch(() => {});
+            renderFolderStatus();
+        }
+
+        // 讀取資料夾裡所有品牌 JSON 與設定檔；merge 為 true 時保留瀏覽器裡資料夾沒有的品牌
+        async function loadFromFolder(merge) {
+            try {
+                const brands = {}, files = {};
+                let folderSettings = null;
+                for await (const entry of folderHandle.values()) {
+                    if (entry.kind !== 'file' || !/\.json$/i.test(entry.name)) continue;
+                    try {
+                        const obj = JSON.parse(await readFileText(await entry.getFile()));
+                        if (obj.format === 'nexus-settings') folderSettings = obj;
+                        else if (obj.format === 'nexus-brand') {
+                            Object.assign(brands, parseBrandJSON(obj));
+                            files[obj.brand] = entry.name;
+                        }
+                    } catch (e) { /* 不是本系統的 JSON，略過 */ }
+                }
+                folderFiles = files;
+                const count = Object.keys(brands).length;
+                if (count) brandStore = merge ? { ...brandStore, ...brands } : brands;
+                if (folderSettings) settings = mergeSettings(folderSettings);
+                folderState = 'ready';
+                saveLocal(STORAGE_KEYS.brands, brandStore);
+                saveLocal(STORAGE_KEYS.settings, settingsToSave());
+                refreshBrandSelector(currentBrand);
+                markDataChanged();
+                renderCurrentView();
+                // 第一次連結或資料夾是空的：把目前的資料寫進資料夾
+                if (merge || !count) await (folderSaveChain = folderSaveChain.then(saveToFolder));
+                renderFolderStatus();
+                showToast(count
+                    ? `已從資料夾「${folderHandle.name}」讀取 ${count} 個品牌`
+                    : `已連結資料夾「${folderHandle.name}」，之後資料會自動存成 JSON 檔`);
+            } catch (e) {
+                folderState = e.name === 'NotAllowedError' ? 'needs-permission' : 'error';
+                renderFolderStatus();
+                showToast(`讀取資料夾失敗：${e.message}`, 'error');
+            }
+        }
+
+        function brandJSON(name) {
+            return JSON.stringify({
+                format: 'nexus-brand',
+                version: 1,
+                brand: name,
+                savedAt: new Date().toISOString(),
+                records: brandStore[name].records,
+                kpiOverrides: brandStore[name].kpiOverrides || {}
+            }, null, 2);
+        }
+
+        async function writeFolderFile(fileName, content) {
+            const handle = await folderHandle.getFileHandle(fileName, { create: true });
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+        }
+
+        // 資料變動後稍等一下再存，避免每打一個字就寫一次檔案；存檔依序執行
+        function scheduleFolderSave() {
+            if (folderState !== 'ready') return;
+            clearTimeout(scheduleFolderSave.timer);
+            scheduleFolderSave.timer = setTimeout(() => { folderSaveChain = folderSaveChain.then(saveToFolder); }, 800);
+        }
+
+        async function saveToFolder() {
+            if (folderState !== 'ready' || !folderHandle) return;
+            try {
+                for (const name of Object.keys(brandStore)) {
+                    const fileName = folderFiles[name] || `${safeFileName(name)}.json`;
+                    await writeFolderFile(fileName, brandJSON(name));
+                    folderFiles[name] = fileName;
+                }
+                // 已刪除或改名的品牌：移除舊檔，避免下次讀取時又出現
+                for (const [name, fileName] of Object.entries(folderFiles)) {
+                    if (brandStore[name]) continue;
+                    await folderHandle.removeEntry(fileName).catch(() => {});
+                    delete folderFiles[name];
+                }
+                await writeFolderFile(SETTINGS_FILE, JSON.stringify({ format: 'nexus-settings', version: 1, ...settingsToSave() }, null, 2));
+                folderSavedAt = new Date();
+            } catch (e) {
+                folderState = e.name === 'NotAllowedError' ? 'needs-permission' : 'error';
+                showToast(`自動儲存到資料夾失敗：${e.message}`, 'error');
+            }
+            renderFolderStatus();
+        }
+
+        function renderFolderStatus() {
+            const box = document.getElementById('folderStatus');
+            const name = folderHandle ? esc(folderHandle.name) : '';
+            const link = (fn, text) => `<button onclick="${fn}()" class="underline hover:text-brand-600">${text}</button>`;
+            const primary = (fn, text) => `<button onclick="${fn}()" class="w-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold py-2 px-3 rounded-md transition-colors">${text}</button>`;
+            if (!FOLDER_SUPPORTED) {
+                box.innerHTML = '<p>這個瀏覽器不支援資料夾自動儲存，請改用 Chrome 或 Edge。資料目前只存在這個瀏覽器，可用「匯出 JSON」備份。</p>';
+            } else if (folderState === 'ready') {
+                const time = folderSavedAt ? `，最後儲存 ${folderSavedAt.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}` : '';
+                box.innerHTML = `<p><i class="fa-solid fa-circle-check text-emerald-500"></i> 已連結「${name}」，資料會自動存成 JSON${time}</p>
+                    <p class="text-brand-700">${link('chooseDataFolder', '更換資料夾')}　${link('disconnectFolder', '中斷連結')}</p>`;
+            } else if (folderState === 'needs-permission') {
+                box.innerHTML = `<p><i class="fa-solid fa-lock text-amber-500"></i> 瀏覽器需要你確認，才能讀寫資料夾「${name}」。</p>
+                    ${primary('grantFolderPermission', '授權並讀取資料夾')}
+                    <p class="text-brand-700">${link('chooseDataFolder', '改選其他資料夾')}　${link('disconnectFolder', '中斷連結')}</p>`;
+            } else if (folderState === 'error') {
+                box.innerHTML = `<p class="text-red-600"><i class="fa-solid fa-triangle-exclamation"></i> 無法存取資料夾「${name}」，可能已被移動或刪除。</p>${primary('chooseDataFolder', '重新選擇資料夾')}`;
+            } else {
+                box.innerHTML = `<p>選一個資料夾後，填寫的資料會自動存成 JSON 檔，下次打開網頁自動讀取。</p>${primary('chooseDataFolder', '選擇資料夾')}`;
+            }
+            if (currentView === 'editor') updateEditorStatus();
         }
 
         // ===== 匯出 =====
@@ -782,35 +968,10 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             downloadFile('品牌數據填寫範本.csv', buildBrandCSV('（請填品牌名稱）', records), 'text/csv;charset=utf-8');
         }
 
-        async function saveBrandJSON() {
-            const name = currentBrand;
-            const content = JSON.stringify({
-                format: 'nexus-brand',
-                version: 1,
-                brand: name,
-                savedAt: new Date().toISOString(),
-                records: brandStore[name].records,
-                kpiOverrides: brandStore[name].kpiOverrides || {}
-            }, null, 2);
-            if (window.showSaveFilePicker) {
-                try {
-                    const handle = fileHandles[name] || await window.showSaveFilePicker({
-                        suggestedName: `${safeFileName(name)}.json`,
-                        types: [{ description: '品牌資料 JSON', accept: { 'application/json': ['.json'] } }]
-                    });
-                    const writable = await handle.createWritable();
-                    await writable.write(content);
-                    await writable.close();
-                    fileHandles[name] = handle;
-                    showToast(`已儲存到 ${handle.name}`);
-                    return;
-                } catch (e) {
-                    if (e.name === 'AbortError') return;
-                    // 其他錯誤 (例如沒有寫入權限)：改用下載
-                }
-            }
-            downloadFile(`${safeFileName(name)}.json`, content, 'application/json');
-            showToast(`已下載 ${safeFileName(name)}.json`);
+        // 匯出目前品牌的 JSON (下載一份，用來備份或傳給別人)
+        function exportBrandJSON() {
+            downloadFile(`${safeFileName(currentBrand)}.json`, brandJSON(currentBrand), 'application/json');
+            showToast(`已下載 ${safeFileName(currentBrand)}.json`);
         }
 
         function showToast(message, type = 'info') {
@@ -1806,7 +1967,9 @@ ${DATA_UNIT_NOTE}
             const status = document.getElementById('editorStatus');
             status.innerHTML = invalid.length
                 ? `<span class="text-red-600"><i class="fa-solid fa-triangle-exclamation"></i> 有 ${invalid.length} 格格式不正確（紅框），儀表板會視為未填：${esc(invalid.slice(0, 3).join('、'))}${invalid.length > 3 ? '…' : ''}</span>`
-                : '<i class="fa-solid fa-check text-emerald-500"></i> 已自動保存在這個瀏覽器。要換電腦或備份，請「存成 JSON」。';
+                : folderState === 'ready'
+                    ? `<i class="fa-solid fa-check text-emerald-500"></i> 已自動儲存到資料夾「${esc(folderHandle.name)}」，每個品牌一個 JSON 檔。`
+                    : '<i class="fa-solid fa-check text-emerald-500"></i> 已自動保存在這個瀏覽器。在左側「資料夾自動儲存」選擇資料夾後，會自動存成 JSON 檔。';
         }
 
         function nextMonthName(name) {
@@ -1884,7 +2047,6 @@ ${DATA_UNIT_NOTE}
             if (error) { showToast(error, 'error'); return; }
             // 重建物件以保留品牌順序
             brandStore = Object.fromEntries(Object.entries(brandStore).map(([k, v]) => [k === currentBrand ? name : k, v]));
-            delete fileHandles[currentBrand];
             refreshBrandSelector(name);
             markDataChanged();
             renderCurrentView();
@@ -1892,9 +2054,8 @@ ${DATA_UNIT_NOTE}
 
         function deleteBrand() {
             if (Object.keys(brandStore).length === 1) { showToast('至少要保留一個品牌。', 'error'); return; }
-            if (!confirm(`確定刪除品牌「${currentBrand}」？瀏覽器中保存的這個品牌資料會被移除，建議先「存成 JSON」備份。`)) return;
+            if (!confirm(`確定刪除品牌「${currentBrand}」？這個品牌的資料會被移除（連結資料夾時也會刪除對應的 JSON 檔），建議先「匯出 JSON」備份。`)) return;
             delete brandStore[currentBrand];
-            delete fileHandles[currentBrand];
             refreshBrandSelector();
             markDataChanged();
             renderCurrentView();
@@ -1929,7 +2090,7 @@ ${DATA_UNIT_NOTE}
                     return;
                 }
             }
-            demoNames.forEach(n => { delete brandStore[n]; delete fileHandles[n]; });
+            demoNames.forEach(n => { delete brandStore[n]; });
             if (newBrand) brandStore[newBrand] = { records: [makeRecord(`${new Date().getMonth() + 1}月`, {})], kpiOverrides: {} };
             refreshBrandSelector(newBrand || Object.keys(brandStore)[0]);
             markDataChanged();
