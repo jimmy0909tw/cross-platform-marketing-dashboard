@@ -32,6 +32,7 @@
         .metric-value { transition: color 0.3s ease; }
         .btn-secondary { display: inline-flex; align-items: center; gap: .4rem; font-size: .75rem; font-weight: 500; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: .5rem; background: #fff; color: #374151; }
         .btn-secondary:hover { background: #f9fafb; }
+        .display-off { display: none !important; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased min-h-screen flex flex-col md:flex-row">
@@ -43,7 +44,7 @@
                 <i class="fa-solid fa-chart-pie text-xl"></i>
             </div>
             <div>
-                <h1 class="font-bold text-gray-900 text-lg leading-tight">Nexus Analytics</h1>
+                <h1 class="font-bold text-gray-900 text-lg leading-tight">社群平台數據儀表板</h1>
                 <p class="text-xs text-gray-500">多品牌社群戰情室</p>
             </div>
         </div>
@@ -84,7 +85,7 @@
 
             <!-- 設定 -->
             <button onclick="openSettings()" class="w-full mb-6 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm">
-                <i class="fa-solid fa-gear"></i> 設定（KPI 標準與 AI 提示詞）
+                <i class="fa-solid fa-gear"></i> 設定（KPI、提示詞、顯示項目）
             </button>
 
             <!-- AI 自動化提案與免 API 備案 -->
@@ -151,7 +152,7 @@
         </header>
 
         <!-- 數據完整性警示橫幅 (當偵測到空值時自動顯示) -->
-        <div id="dataCompletenessBanner" class="hidden mb-6 p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800 flex items-start gap-3 shadow-sm">
+        <div id="dataCompletenessBanner" data-display="block.banner" class="hidden mb-6 p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-800 flex items-start gap-3 shadow-sm">
             <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 text-lg"></i>
             <div class="text-xs leading-relaxed">
                 <span class="font-bold text-sm block mb-0.5">偵測到部分平台或月份數據未填寫（資料不完整）</span>
@@ -160,9 +161,9 @@
         </div>
 
         <!-- 四大核心指標卡片 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div id="kpiGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <!-- 1. 本月社群總流量 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div data-display="kpi.traffic" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-users-viewfinder text-5xl text-brand-500"></i></div>
                 <h3 class="text-sm font-semibold text-gray-800 mb-1">1. 本月社群總流量</h3>
                 <p class="text-xs text-gray-400 mb-3">Meta + TikTok 總觸及/觀看數</p>
@@ -171,7 +172,7 @@
             </div>
 
             <!-- 2. 黃金互動率 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div data-display="kpi.engagement" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-heart-circle-check text-5xl text-pink-500"></i></div>
                 <h3 class="text-sm font-semibold text-gray-800 mb-1">2. 黃金互動率</h3>
                 <p class="text-xs text-gray-400 mb-3">留言+分享+收藏的綜合指標</p>
@@ -180,7 +181,7 @@
             </div>
 
             <!-- 3. 短影音平均完播率 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div data-display="kpi.retention" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-stopwatch text-5xl text-tiktok"></i></div>
                 <h3 class="text-sm font-semibold text-gray-800 mb-1">3. 短影音平均完播率</h3>
                 <p class="text-xs text-gray-400 mb-3">評估影片腳本好壞的關鍵</p>
@@ -189,7 +190,7 @@
             </div>
 
             <!-- 4. 單次引流成本 / 點擊成本 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
+            <div data-display="kpi.cpc" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col relative overflow-hidden group hover:shadow-md transition-shadow">
                 <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-hand-pointer text-5xl text-emerald-500"></i></div>
                 <h3 class="text-sm font-semibold text-gray-800 mb-1">4. 單次引流 / 點擊成本</h3>
                 <p class="text-xs text-gray-400 mb-3">花了多少力氣才把一個人騙去官網</p>
@@ -199,41 +200,119 @@
         </div>
 
         <!-- 各平台詳細數據：每個指標顯示數值、與前月比較、良好/普通/待加強 (標準可在「設定」修改) -->
-        <div class="mb-8">
+        <div data-display="block.detail" class="mb-8">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <h3 class="font-bold text-gray-900">各平台詳細數據 <span class="text-xs font-normal text-gray-400 ml-1">最新月份表現，標籤標準可在「設定」修改</span></h3>
-                <div id="detailTabs" class="flex flex-wrap gap-1.5"></div>
+                <div class="flex flex-wrap items-center gap-1.5"><div id="detailTabs" class="flex flex-wrap gap-1.5"></div><button onclick="openSettings('display')" class="text-xs text-gray-400 hover:text-gray-700 px-2" title="選擇要顯示的平台與指標"><i class="fa-solid fa-sliders"></i></button></div>
             </div>
             <div id="detailCards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
         </div>
 
-        <!-- 圖表區 -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- 折線圖：CPA 轉換成本趨勢 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-900">跨平台獲客成本趨勢 (CPA)</h3>
-                    <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">Meta vs TikTok</span>
-                </div>
-                <div class="relative h-64 w-full">
-                    <canvas id="cpaChart"></canvas>
+        <!-- 圖表分析：每張圖可在「顯示設定」開關，期間可自選 -->
+        <div id="chartSection" class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
+                <h3 class="font-bold text-gray-900">圖表分析</h3>
+                <div class="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                    <span>圖表期間</span>
+                    <select id="chartFrom" onchange="setChartRange('from', this.value)" class="border border-gray-300 rounded-md px-2 py-1.5 bg-white"></select>
+                    <span>至</span>
+                    <select id="chartTo" onchange="setChartRange('to', this.value)" class="border border-gray-300 rounded-md px-2 py-1.5 bg-white"></select>
+                    <button onclick="openSettings('display')" class="btn-secondary"><i class="fa-solid fa-sliders"></i> 顯示設定</button>
                 </div>
             </div>
-
-            <!-- 長條圖：點擊率比較 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-900">本月素材吸睛度比較 (CTR)</h3>
-                    <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">各平台點擊率</span>
+            <p id="chartHint" class="text-xs text-gray-500 mb-4"></p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 1. 指標健康度熱力圖 -->
+                <div data-display="chart.health" class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
+                        <h3 class="font-bold text-gray-900">指標健康度熱力圖</h3>
+                        <div class="flex flex-wrap gap-2 text-[11px]">
+                            <span class="px-2 py-0.5 rounded bg-emerald-400 text-white">良好</span>
+                            <span class="px-2 py-0.5 rounded bg-gray-200 text-gray-700">普通</span>
+                            <span class="px-2 py-0.5 rounded bg-amber-400 text-white">待加強</span>
+                            <span class="px-2 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200">未填 / 不評分</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">依「設定」中的 KPI 標準判斷每個月的表現，滑鼠移到格子上可看數值與判斷依據</p>
+                    <div id="healthHeatmap" class="overflow-x-auto"></div>
                 </div>
-                <div class="relative h-64 w-full">
-                    <canvas id="ctrChart"></canvas>
+
+                <!-- 2. 花費、營收與 ROAS -->
+                <div data-display="chart.spend" class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-gray-900">花費、營收與 ROAS 趨勢</h3>
+                        <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">成本效益</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">官網營收含自然流量訂單，ROAS 為整體參考值，非廣告歸因</p>
+                    <div id="spendEmpty" class="hidden text-sm text-gray-400 py-10 text-center">這段期間沒有填寫花費或營收資料</div>
+                    <div id="spendCharts">
+                        <div class="relative h-64 w-full"><canvas id="spendChart"></canvas></div>
+                        <div class="relative h-36 w-full mt-4"><canvas id="roasChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- 3. 各平台轉換漏斗 -->
+                <div data-display="chart.funnel" class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-gray-900">各平台轉換漏斗 <span id="funnelMonth" class="text-sm font-normal text-gray-400"></span></h3>
+                        <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">流失在哪一步</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-4">Meta 從曝光開始、TikTok 從影片觀看開始，起點定義不同，請分開解讀；長條寬度僅示意階段，不代表比例</p>
+                    <div id="funnelView" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+                </div>
+
+                <!-- 4. CPA 趨勢 -->
+                <div data-display="chart.cpa" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-gray-900">跨平台獲客成本趨勢 (CPA)</h3>
+                        <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">Meta vs TikTok</span>
+                    </div>
+                    <div class="relative h-64 w-full"><canvas id="cpaChart"></canvas></div>
+                </div>
+
+                <!-- 5. CTR：本月比較 / 歷月趨勢 -->
+                <div data-display="chart.ctr" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+                        <h3 class="font-bold text-gray-900">素材吸睛度比較 (CTR)</h3>
+                        <div id="ctrModeTabs" class="flex gap-1"></div>
+                    </div>
+                    <div class="relative h-64 w-full"><canvas id="ctrChart"></canvas></div>
+                </div>
+
+                <!-- 6. 吸睛力 × 留存力四象限 -->
+                <div data-display="chart.quadrant" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-gray-900">吸睛力 × 留存力四象限</h3>
+                        <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">素材診斷</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">每個點是一個平台的一個月份；以各平台在期間內的平均為 100，看高於或低於自己的平均</p>
+                    <div class="relative h-72 w-full"><canvas id="quadrantChart"></canvas></div>
+                </div>
+
+                <!-- 7. 深度互動組成 -->
+                <div data-display="chart.engagement" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-gray-900">深度互動組成</h3>
+                        <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">Meta + Threads</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">長條為各類互動次數（左軸），折線為 Meta 互動率（右軸）</p>
+                    <div class="relative h-72 w-full"><canvas id="engagementChart"></canvas></div>
+                </div>
+
+                <!-- 8. 流量平台佔比 -->
+                <div data-display="chart.share" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-gray-900">流量平台佔比</h3>
+                        <span class="text-xs bg-gray-100 text-gray-600 py-1 px-2 rounded font-medium">流量結構</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Meta、TikTok 用觸及人數；YouTube 沒有觸及資料，改用觀看次數</p>
+                    <div class="relative h-72 w-full"><canvas id="shareChart"></canvas></div>
                 </div>
             </div>
         </div>
 
         <!-- AI 洞察區塊 -->
-        <div class="bg-gradient-to-br from-indigo-50 to-white rounded-xl shadow-sm border border-indigo-100 p-6 mb-10">
+        <div data-display="block.ai" class="bg-gradient-to-br from-indigo-50 to-white rounded-xl shadow-sm border border-indigo-100 p-6 mb-10">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                 <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
                     <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> AI 決策洞察
@@ -292,6 +371,7 @@
                 <div class="flex gap-1.5">
                     <button data-settings-tab="kpi" onclick="switchSettingsTab('kpi')">KPI 標準</button>
                     <button data-settings-tab="prompts" onclick="switchSettingsTab('prompts')">AI 提示詞</button>
+                    <button data-settings-tab="display" onclick="switchSettingsTab('display')">顯示項目</button>
                 </div>
                 <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600" aria-label="關閉"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
@@ -303,6 +383,10 @@
                     </div>
                     <p id="settingsScopeNote" class="text-xs text-gray-500 mb-2"></p>
                     <div id="kpiTable" class="overflow-x-auto"></div>
+                </div>
+                <div id="settingsDisplayPane" class="hidden">
+                    <p class="text-xs text-gray-500 mb-3">勾選要在儀表板顯示的項目。標示「建議必開」的項目預設開啟，其他預設關閉；關閉只是隱藏，資料不會刪除。</p>
+                    <div id="displayList"></div>
                 </div>
                 <div id="settingsPromptPane" class="hidden space-y-4">
                     <p class="text-xs text-gray-500 leading-relaxed">可用標記：<code>{品牌}</code> <code>{分析範圍}</code> <code>{第一個月}</code> <code>{前月}</code> <code>{本月}</code> <code>{月數}</code> <code>{歷史數據}</code>，送出時會自動換成實際內容（近 2 月比較報告中 <code>{前月}</code> 是選擇的比較月份）。若提示詞中沒有 <code>{歷史數據}</code>，數據會自動附在最後。</p>
@@ -462,12 +546,12 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
         let settings = null;
         const clone = obj => JSON.parse(JSON.stringify(obj));
         function defaultSettings() {
-            return { kpi: clone(DEFAULT_KPI), prompts: { ...DEFAULT_PROMPTS } };
+            return { kpi: clone(DEFAULT_KPI), prompts: { ...DEFAULT_PROMPTS }, display: {} };
         }
         function mergeSettings(saved) {
             const d = defaultSettings();
             if (!saved) return d;
-            return { kpi: { ...d.kpi, ...(saved.kpi || {}) }, prompts: { ...d.prompts, ...(saved.prompts || {}) } };
+            return { kpi: { ...d.kpi, ...(saved.kpi || {}) }, prompts: { ...d.prompts, ...(saved.prompts || {}) }, display: { ...(saved.display || {}) } };
         }
         // 某品牌某指標實際使用的標準：共用標準 + 品牌自訂覆寫
         function effectiveKpi(key, brand = currentBrand) {
@@ -475,8 +559,75 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             return { ...(settings.kpi[key] || NO_RATING), ...(overrides[key] || {}) };
         }
 
-        let cpaChartInstance = null;
-        let ctrChartInstance = null;
+
+        // ===== 顯示項目開關 =====
+        // rec：建議必開 (預設開啟)，其他預設關閉；settings.display 只記錄與預設不同的開關
+        const REC_METRICS = new Set([
+            'Meta_CPC', 'Meta_CTR', 'Meta_CPA', 'Meta_珍藏次數', 'Meta_分享次數', 'Meta_花費', 'Meta_3秒觀看率', 'Meta_ThruPlay率', 'Meta_互動率',
+            'Threads_串文回覆', 'Threads_轉發', 'Threads_引用',
+            'TikTok_CPC', 'TikTok_CTR', 'TikTok_CPA', 'TikTok_完整觀看率', 'TikTok_觀眾保留率', 'TikTok_花費',
+            'YT_曝光點擊率', 'YT_觀看次數', 'YT_平均觀看時間', 'YT_觀眾續看率',
+            '官網_訂單數', '官網_營收', '官網_客單價', '官網_退款率', '官網_ROAS'
+        ]);
+        const DISPLAY_GROUPS = [
+            { title: '核心指標卡', items: [
+                { id: 'kpi.traffic', label: '本月社群總流量', rec: true },
+                { id: 'kpi.engagement', label: '黃金互動率', rec: true },
+                { id: 'kpi.retention', label: '短影音平均完播率', rec: true },
+                { id: 'kpi.cpc', label: '單次引流 / 點擊成本', rec: true }
+            ] },
+            { title: '圖表', charts: true, items: [
+                { id: 'chart.health', label: '指標健康度熱力圖', rec: true },
+                { id: 'chart.spend', label: '花費、營收與 ROAS 趨勢', rec: true },
+                { id: 'chart.funnel', label: '各平台轉換漏斗', rec: true },
+                { id: 'chart.cpa', label: '跨平台獲客成本趨勢 (CPA)', rec: true },
+                { id: 'chart.ctr', label: '素材吸睛度比較 (CTR)', rec: true },
+                { id: 'chart.quadrant', label: '吸睛力 × 留存力四象限', rec: false },
+                { id: 'chart.engagement', label: '深度互動組成', rec: false },
+                { id: 'chart.share', label: '流量平台佔比', rec: false }
+            ] },
+            { title: '其他區塊', items: [
+                { id: 'block.banner', label: '資料不完整提示', rec: true },
+                { id: 'block.detail', label: '各平台詳細數據', rec: true },
+                { id: 'block.ai', label: 'AI 決策洞察', rec: true }
+            ] },
+            { title: '詳細數據的平台分頁', items: PLATFORMS.map(p => ({ id: `tab.${p}`, label: p, rec: true })) },
+            ...PLATFORMS.map(p => ({
+                title: `${p} 指標卡`,
+                items: CARD_METRICS.filter(m => m.platform === p).map(m => ({ id: `metric.${m.key}`, label: m.name, rec: REC_METRICS.has(m.key) }))
+            }))
+        ];
+        const DISPLAY_DEFAULTS = Object.fromEntries(DISPLAY_GROUPS.flatMap(g => g.items).map(i => [i.id, i.rec]));
+
+        function isShown(id, display = settings.display) {
+            return display && id in display ? display[id] : DISPLAY_DEFAULTS[id] !== false;
+        }
+
+        // 依開關顯示或隱藏儀表板區塊 (data-display 標記的元素)
+        function applyDisplay() {
+            document.querySelectorAll('[data-display]').forEach(el => el.classList.toggle('display-off', !isShown(el.dataset.display)));
+            const kpiIds = DISPLAY_GROUPS[0].items.map(i => i.id);
+            document.getElementById('kpiGrid').classList.toggle('display-off', !kpiIds.some(id => isShown(id)));
+            const charts = DISPLAY_GROUPS.find(g => g.charts).items;
+            const off = charts.filter(i => !isShown(i.id)).length;
+            document.getElementById('chartSection').classList.toggle('display-off', off === charts.length);
+            document.getElementById('chartHint').innerHTML = off
+                ? `另有 ${off} 張圖表未開啟，可在<button onclick="openSettings('display')" class="underline hover:text-gray-800 mx-0.5">顯示設定</button>開啟。`
+                : '';
+        }
+
+        // 開關改變後重畫；不在儀表板頁時等切回來再畫 (隱藏中的圖表無法計算尺寸)
+        let displayStale = false;
+        function refreshDisplay() {
+            if (currentView !== 'dashboard') {
+                displayStale = true;
+                return;
+            }
+            displayStale = false;
+            applyDisplay();
+            renderDetailSection();
+            renderCharts();
+        }
 
         // ===== 品牌資料 =====
         // brandStore：{ 品牌名稱: { records: [{ 月份, 指標代碼: 值 }], kpiOverrides: { 指標代碼: { method, dir, good, bad } } } }
@@ -501,7 +652,7 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
         // 只保存改過的提示詞；沒改過的一律跟著程式內建的預設值 (預設值更新時自動套用)
         function settingsToSave() {
             const prompts = Object.fromEntries(Object.entries(settings.prompts).filter(([type, text]) => text !== DEFAULT_PROMPTS[type]));
-            return { kpi: settings.kpi, prompts };
+            return { kpi: settings.kpi, prompts, display: settings.display || {} };
         }
         function persistSettings() {
             saveLocal(STORAGE_KEYS.settings, settingsToSave());
@@ -536,6 +687,7 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             editorTable.addEventListener('input', handleCellInput);
             editorTable.addEventListener('keydown', handleCellKeydown);
             document.getElementById('kpiTable').addEventListener('change', handleKpiChange);
+            document.getElementById('displayList').addEventListener('change', handleDisplayChange);
             document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
             initAiConfig();
 
@@ -581,6 +733,9 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             if (dashboardRenderedFor !== key) {
                 updateDashboard();
                 dashboardRenderedFor = key;
+                displayStale = false;
+            } else if (displayStale) {
+                refreshDisplay();
             }
         }
 
@@ -1106,19 +1261,10 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
 
             renderDetailSection();
 
-            // 繪製圖表
-            const labels = brandData.map(d => d['月份']);
-            const metaCPA = brandData.map(d => { const v = pFloat(d['Meta_CPA']); return isNaN(v) ? null : v; });
-            const tiktokCPA = brandData.map(d => { const v = pFloat(d['TikTok_CPA']); return isNaN(v) ? null : v; });
-            
-            const metaCTR = pFloat(latest['Meta_CTR']);
-            const tiktokCTR = pFloat(latest['TikTok_CTR']);
-            const ytCTR = pFloat(latest['YT_曝光點擊率']);
+            chartRange = {}; // 換品牌或資料變動時，圖表期間回到全部月份
+            applyDisplay();
+            renderCharts();
 
-            drawCpaChart(labels, metaCPA, tiktokCPA);
-            // 未填寫的平台傳 null，長條圖不畫該平台 (避免誤以為點擊率為 0)
-            drawCtrChart(isNaN(metaCTR) ? null : metaCTR, isNaN(tiktokCTR) ? null : tiktokCTR, isNaN(ytCTR) ? null : ytCTR);
-            
             resetAiOutputs();
             reportSelection = { monthly: {}, overall: {} }; // 換品牌或資料變動時，月份回到預設
             switchReport(currentReport);
@@ -1259,53 +1405,364 @@ Oasis咖啡(漏填嚴重),9月,150000,125000,8,2.5%,175,,,,3200,450,220,35,8,4,,
             </div>`;
         }
 
+        // 只顯示「顯示設定」中開啟的平台分頁與指標卡
         function renderDetailSection() {
             const records = brandStore[currentBrand] ? brandStore[currentBrand].records : [];
             const idx = records.length - 1;
-            document.getElementById('detailTabs').innerHTML = PLATFORMS.map(p => {
-                const badCount = CARD_METRICS.filter(m => m.platform === p && rateMetric(m, records, idx).level === 'bad').length;
+            const platforms = PLATFORMS.filter(p => isShown(`tab.${p}`));
+            const visibleMetrics = p => CARD_METRICS.filter(m => m.platform === p && isShown(`metric.${m.key}`));
+            if (!platforms.includes(detailPlatform)) detailPlatform = platforms[0];
+            document.getElementById('detailTabs').innerHTML = platforms.map(p => {
+                const badCount = visibleMetrics(p).filter(m => rateMetric(m, records, idx).level === 'bad').length;
                 const badge = badCount ? ` <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700" title="待加強指標數">${badCount}</span>` : '';
                 return `<button onclick="detailPlatform='${p}'; renderDetailSection()" class="${tabClass(p === detailPlatform)}">${p}${badge}</button>`;
             }).join('');
-            document.getElementById('detailCards').innerHTML = CARD_METRICS
-                .filter(m => m.platform === detailPlatform)
-                .map(m => detailCard(m, records, idx))
-                .join('');
+            const metrics = detailPlatform ? visibleMetrics(detailPlatform) : [];
+            document.getElementById('detailCards').innerHTML = metrics.length
+                ? metrics.map(m => detailCard(m, records, idx)).join('')
+                : `<p class="col-span-full text-sm text-gray-400 py-4">${platforms.length ? '這個平台的指標卡都已關閉' : '平台分頁都已關閉'}，可在<button onclick="openSettings('display')" class="underline hover:text-gray-700 mx-0.5">顯示設定</button>開啟。</p>`;
         }
 
-        function drawCpaChart(labels, metaData, tiktokData) {
-            const ctx = document.getElementById('cpaChart').getContext('2d');
-            if(cpaChartInstance) cpaChartInstance.destroy();
-            cpaChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Meta CPA (NT$)', data: metaData, borderColor: '#1877F2', backgroundColor: 'transparent', tension: 0.3, borderWidth: 3, spanGaps: true },
-                        { label: 'TikTok CPA (NT$)', data: tiktokData, borderColor: '#000000', backgroundColor: 'transparent', borderDash: [5, 5], tension: 0.3, borderWidth: 3, spanGaps: true }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
+        // ===== 圖表分析 =====
+        // 所有圖表依「圖表期間」繪製；未填的月份留空不連線，避免誤以為是 0
+        const PLATFORM_COLORS = { Meta: '#1877F2', TikTok: '#111827', YouTube: '#FF0000', 官網: '#10B981' };
+        const CARD_METRIC_BY_KEY = Object.fromEntries(CARD_METRICS.map(m => [m.key, m]));
+        const chartInstances = {};
+        let chartRange = {};
+        let ctrMode = 'latest';
+
+        function seriesOf(rows, key) {
+            return rows.map(r => metricValue(r, CARD_METRIC_BY_KEY[key]));
+        }
+
+        function averageValue(values) {
+            const valid = values.filter(v => v !== null);
+            return valid.length ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
+        }
+
+        function moneyTick(value) {
+            return Math.abs(value) >= 10000 ? `NT$${fmt(Math.round(value / 1000) / 10)}萬` : `NT$${fmt(value)}`;
+        }
+
+        // 圖表期間 (預設全部月份)；起訖選反了就自動對調
+        function getChartRange() {
+            const months = currentMonths();
+            return {
+                from: months.includes(chartRange.from) ? chartRange.from : months[0],
+                to: months.includes(chartRange.to) ? chartRange.to : months[months.length - 1]
+            };
+        }
+
+        function setChartRange(role, month) {
+            chartRange = { ...getChartRange(), [role]: month };
+            renderCharts();
+        }
+
+        function chartContext() {
+            const records = brandStore[currentBrand] ? brandStore[currentBrand].records : [];
+            const months = records.map(r => r['月份']);
+            const { from, to } = getChartRange();
+            let start = months.indexOf(from), end = months.indexOf(to);
+            if (start > end) [start, end] = [end, start];
+            return { records, start, rows: start < 0 ? [] : records.slice(start, end + 1) };
+        }
+
+        function baseOptions(extra = {}) {
+            return { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, ...extra };
+        }
+
+        // 建立或重建圖表；沒有資料時改顯示提示文字
+        function makeChart(canvasId, config, hasData = true) {
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+                delete chartInstances[canvasId];
+            }
+            const canvas = document.getElementById(canvasId);
+            const parent = canvas.parentElement;
+            let empty = parent.querySelector('.chart-empty');
+            if (!hasData) {
+                if (!empty) {
+                    empty = document.createElement('div');
+                    empty.className = 'chart-empty absolute inset-0 flex items-center justify-center text-sm text-gray-400';
+                    empty.textContent = '這段期間沒有足夠的資料';
+                    parent.appendChild(empty);
+                }
+                canvas.classList.add('invisible');
+                return;
+            }
+            if (empty) empty.remove();
+            canvas.classList.remove('invisible');
+            chartInstances[canvasId] = new Chart(canvas.getContext('2d'), config);
+        }
+
+        function renderCharts() {
+            const months = currentMonths();
+            const { from, to } = getChartRange();
+            ['chartFrom', 'chartTo'].forEach((id, i) => {
+                const select = document.getElementById(id);
+                select.innerHTML = months.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+                select.value = i ? to : from;
             });
+            const ctx = chartContext();
+            const renderers = {
+                'chart.health': renderHealthHeatmap, 'chart.spend': renderSpendChart, 'chart.funnel': renderFunnel,
+                'chart.cpa': renderCpaChart, 'chart.ctr': renderCtrChart, 'chart.quadrant': renderQuadrantChart,
+                'chart.engagement': renderEngagementChart, 'chart.share': renderShareChart
+            };
+            Object.entries(renderers).forEach(([id, render]) => { if (isShown(id)) render(ctx); });
         }
 
-        function drawCtrChart(meta, tiktok, yt) {
-            const ctx = document.getElementById('ctrChart').getContext('2d');
-            if(ctrChartInstance) ctrChartInstance.destroy();
-            ctrChartInstance = new Chart(ctx, {
+        // 1. 指標健康度熱力圖：列為指標、欄為月份，顏色依 KPI 標準
+        function renderHealthHeatmap({ records, start, rows }) {
+            const box = document.getElementById('healthHeatmap');
+            const metrics = CARD_METRICS.filter(m =>
+                isShown(`tab.${m.platform}`) && isShown(`metric.${m.key}`) && effectiveKpi(m.key).method !== 'none');
+            if (!rows.length || !metrics.length) {
+                box.innerHTML = '<p class="text-sm text-gray-400 py-6 text-center">沒有可顯示的指標，請在「顯示設定」開啟指標卡。</p>';
+                return;
+            }
+            const cellCls = {
+                good: 'bg-emerald-400 text-white', mid: 'bg-gray-200 text-gray-700', bad: 'bg-amber-400 text-white',
+                na: 'bg-gray-50 text-gray-300', unknown: 'bg-gray-50 text-gray-400', none: 'bg-gray-50 text-gray-400'
+            };
+            let html = `<table class="text-xs border-separate" style="border-spacing:3px"><thead><tr>
+                <th class="sticky left-0 z-10 bg-white text-left font-medium text-gray-500 pr-3 min-w-[9rem]">指標</th>
+                ${rows.map(r => `<th class="font-medium text-gray-500 min-w-[5.5rem]">${esc(r['月份'])}</th>`).join('')}</tr></thead><tbody>`;
+            PLATFORMS.forEach(p => {
+                const group = metrics.filter(m => m.platform === p);
+                if (!group.length) return;
+                html += `<tr><td colspan="${rows.length + 1}" class="sticky left-0 bg-white pt-2 font-bold text-gray-900">${p}</td></tr>`;
+                group.forEach(m => {
+                    html += `<tr><td class="sticky left-0 z-10 bg-white text-gray-700 pr-3 whitespace-nowrap">${esc(m.name)}</td>`;
+                    rows.forEach((r, i) => {
+                        const rating = rateMetric(m, records, start + i);
+                        const label = LEVELS[rating.level][0] || '不評分';
+                        const value = rating.value === null ? '' : fmtMetric(rating.value, m);
+                        const tip = `${m.platform} ${m.name}・${r['月份']}\n${value || '未填'}${rating.value === null ? '' : `（${label}）`}${rating.note ? `\n${rating.note}` : ''}`;
+                        html += `<td title="${esc(tip)}" class="rounded px-1.5 py-1.5 text-center whitespace-nowrap ${cellCls[rating.level]}">${esc(value || '—')}</td>`;
+                    });
+                    html += '</tr>';
+                });
+            });
+            box.innerHTML = html + '</tbody></table>';
+        }
+
+        // 2. 花費、營收與 ROAS：上方花費堆疊 + 營收折線，下方 ROAS (不使用雙 Y 軸，避免誤讀)
+        function renderSpendChart({ rows }) {
+            const labels = rows.map(r => r['月份']);
+            const meta = seriesOf(rows, 'Meta_花費'), tiktok = seriesOf(rows, 'TikTok_花費'), revenue = seriesOf(rows, '官網_營收');
+            const roas = seriesOf(rows, '官網_ROAS');
+            const hasData = [...meta, ...tiktok, ...revenue].some(v => v !== null);
+            document.getElementById('spendEmpty').classList.toggle('hidden', hasData);
+            document.getElementById('spendCharts').classList.toggle('hidden', !hasData);
+            if (!hasData) return;
+            makeChart('spendChart', {
+                type: 'bar',
+                data: { labels, datasets: [
+                    { label: 'Meta 花費', data: meta, backgroundColor: PLATFORM_COLORS.Meta, stack: 'spend', order: 2 },
+                    { label: 'TikTok 花費', data: tiktok, backgroundColor: PLATFORM_COLORS.TikTok, stack: 'spend', order: 2 },
+                    { type: 'line', label: '官網營收', data: revenue, stack: 'revenue', borderColor: PLATFORM_COLORS.官網, backgroundColor: PLATFORM_COLORS.官網, borderWidth: 3, tension: 0.3, order: 1 }
+                ] },
+                options: baseOptions({
+                    scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: moneyTick } } },
+                    plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}：${c.raw === null ? '未填' : 'NT$ ' + fmt(c.raw)}` } } }
+                })
+            });
+            const good = parseFloat(effectiveKpi('官網_ROAS').good);
+            makeChart('roasChart', {
+                type: 'line',
+                data: { labels, datasets: [
+                    { label: '整體 ROAS', data: roas, borderColor: '#6366F1', backgroundColor: '#6366F1', borderWidth: 3, tension: 0.3 },
+                    ...(isNaN(good) ? [] : [{ label: `良好門檻 ${good}x`, data: labels.map(() => good), borderColor: '#9CA3AF', borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0 }])
+                ] },
+                options: baseOptions({
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => `${v}x` } } },
+                    plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}：${c.raw === null ? '無法計算' : c.raw.toFixed(2) + 'x'}` } } }
+                })
+            }, roas.some(v => v !== null));
+        }
+
+        // 3. 各平台轉換漏斗 (期間最後一個月)；不推估未填的數值
+        function renderFunnel({ rows }) {
+            const row = rows[rows.length - 1];
+            document.getElementById('funnelMonth').textContent = row ? `（${row['月份']}）` : '';
+            const funnels = [
+                { name: 'Meta', stages: [['曝光次數', 'Meta_曝光次數'], ['點擊數', 'Meta_點擊數'], ['轉換數', 'Meta_轉換數']] },
+                { name: 'TikTok', stages: [['影片觀看次數', 'TikTok_影片觀看次數'], ['點擊數', 'TikTok_點擊數'], ['轉換數', 'TikTok_轉換數']] }
+            ];
+            const rateNames = ['點擊率（點擊 ÷ 上一層）', '轉換率（轉換 ÷ 點擊）'];
+            const widths = [100, 74, 50];
+            const html = funnels.map(f => {
+                const values = f.stages.map(([, key]) => parseMetric(row, key));
+                const stages = f.stages.map(([label], i) => {
+                    const v = values[i];
+                    let step = '';
+                    if (i > 0) {
+                        const prev = values[i - 1];
+                        const rate = v !== null && prev ? `${(v / prev * 100).toFixed(2)}%` : '—（資料未填）';
+                        step = `<div class="text-center text-xs text-gray-500 py-1"><i class="fa-solid fa-arrow-down"></i> ${rateNames[i - 1]}：<span class="font-semibold text-gray-700">${rate}</span></div>`;
+                    }
+                    const bar = `<div class="mx-auto rounded-md px-3 py-2 text-center text-sm font-medium ${v === null ? 'bg-gray-100 text-gray-400' : 'text-white'}"
+                        style="width:${widths[i]}%;${v === null ? '' : `background:${PLATFORM_COLORS[f.name]};opacity:${1 - i * 0.2}`}">${label}　${v === null ? '未填' : fmt(v)}</div>`;
+                    return step + bar;
+                }).join('');
+                return `<div><div class="text-sm font-bold text-gray-800 mb-2">${f.name}</div>${stages}</div>`;
+            }).join('');
+            const orders = parseMetric(row, '官網_訂單數');
+            document.getElementById('funnelView').innerHTML = row
+                ? html + `<p class="md:col-span-2 text-xs text-gray-500">官網訂單：${orders === null ? '未填' : `${fmt(orders)} 筆`}（含自然流量，無法歸到單一平台）</p>`
+                : '<p class="text-sm text-gray-400">沒有資料</p>';
+        }
+
+        // 4. CPA 趨勢
+        function renderCpaChart({ rows }) {
+            const meta = seriesOf(rows, 'Meta_CPA'), tiktok = seriesOf(rows, 'TikTok_CPA');
+            makeChart('cpaChart', {
+                type: 'line',
+                data: { labels: rows.map(r => r['月份']), datasets: [
+                    { label: 'Meta CPA', data: meta, borderColor: PLATFORM_COLORS.Meta, backgroundColor: PLATFORM_COLORS.Meta, tension: 0.3, borderWidth: 3 },
+                    { label: 'TikTok CPA', data: tiktok, borderColor: PLATFORM_COLORS.TikTok, backgroundColor: PLATFORM_COLORS.TikTok, borderDash: [5, 5], tension: 0.3, borderWidth: 3 }
+                ] },
+                options: baseOptions({
+                    scales: { y: { ticks: { callback: moneyTick } } },
+                    plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}：${c.raw === null ? '未填' : 'NT$ ' + fmt(c.raw)}` } } }
+                })
+            }, [...meta, ...tiktok].some(v => v !== null));
+        }
+
+        // 5. CTR：本月各平台比較 / 歷月趨勢
+        function setCtrMode(mode) {
+            ctrMode = mode;
+            renderCtrChart(chartContext());
+        }
+
+        function renderCtrChart({ rows }) {
+            document.getElementById('ctrModeTabs').innerHTML = [['latest', '本月比較'], ['trend', '歷月趨勢']]
+                .map(([mode, label]) => `<button onclick="setCtrMode('${mode}')" class="${tabClass(mode === ctrMode)}">${label}</button>`).join('');
+            const series = [['Meta (FB/IG)', 'Meta_CTR', PLATFORM_COLORS.Meta], ['TikTok', 'TikTok_CTR', PLATFORM_COLORS.TikTok], ['YouTube 曝光點擊率', 'YT_曝光點擊率', PLATFORM_COLORS.YouTube]];
+            const pctLabel = c => `${c.dataset.label || c.label}：${c.raw === null ? '未填' : c.raw.toFixed(1) + '%'}`;
+            if (ctrMode === 'trend') {
+                const data = series.map(([, key]) => seriesOf(rows, key));
+                makeChart('ctrChart', {
+                    type: 'line',
+                    data: { labels: rows.map(r => r['月份']), datasets: series.map(([label, , color], i) => ({ label, data: data[i], borderColor: color, backgroundColor: color, tension: 0.3, borderWidth: 3 })) },
+                    options: baseOptions({ scales: { y: { ticks: { callback: v => `${v}%` } } }, plugins: { tooltip: { callbacks: { label: pctLabel } } } })
+                }, data.flat().some(v => v !== null));
+                return;
+            }
+            const row = rows[rows.length - 1];
+            const values = series.map(([, key]) => metricValue(row, CARD_METRIC_BY_KEY[key]));
+            makeChart('ctrChart', {
                 type: 'bar',
                 data: {
-                    labels: [['Meta (FB/IG)', meta], ['TikTok', tiktok], ['YouTube', yt]]
-                        .map(([name, v]) => v === null ? `${name} (未填)` : name),
-                    datasets: [{
-                        label: '點擊率 (%)',
-                        data: [meta, tiktok, yt],
-                        backgroundColor: ['#1877F2', '#000000', '#FF0000'],
-                        borderRadius: 4
-                    }]
+                    labels: series.map(([label], i) => values[i] === null ? `${label} (未填)` : label),
+                    datasets: [{ label: `${row ? row['月份'] : ''} 點擊率`, data: values, backgroundColor: series.map(s => s[2]), borderRadius: 4 }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
+                options: baseOptions({ scales: { y: { ticks: { callback: v => `${v}%` } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: pctLabel } } } })
+            }, values.some(v => v !== null));
+        }
+
+        // 6. 吸睛力 × 留存力四象限：以各平台期間平均為 100 換算指數
+        const quadrantPlugin = {
+            id: 'quadrantLines',
+            afterDraw(chart) {
+                const { ctx, chartArea: a, scales: { x, y } } = chart;
+                const cx = x.getPixelForValue(100), cy = y.getPixelForValue(100);
+                ctx.save();
+                ctx.strokeStyle = '#9CA3AF';
+                ctx.setLineDash([5, 4]);
+                ctx.beginPath();
+                ctx.moveTo(cx, a.top); ctx.lineTo(cx, a.bottom);
+                ctx.moveTo(a.left, cy); ctx.lineTo(a.right, cy);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#9CA3AF';
+                ctx.font = '12px Inter, sans-serif';
+                ctx.textAlign = 'right'; ctx.fillText('吸睛又留得住', a.right - 6, a.top + 16); ctx.fillText('吸睛但留不住', a.right - 6, a.bottom - 8);
+                ctx.textAlign = 'left'; ctx.fillText('不吸睛但留得住', a.left + 6, a.top + 16); ctx.fillText('吸睛與留存都偏弱', a.left + 6, a.bottom - 8);
+                ctx.restore();
+            }
+        };
+
+        function renderQuadrantChart({ rows }) {
+            const defs = [
+                { name: 'Meta', x: 'Meta_CTR', y: 'Meta_ThruPlay率', xLabel: 'CTR', yLabel: '完整播放率' },
+                { name: 'TikTok', x: 'TikTok_CTR', y: 'TikTok_完整觀看率', xLabel: 'CTR', yLabel: '完整觀看率' },
+                { name: 'YouTube', x: 'YT_曝光點擊率', y: 'YT_觀眾續看率', xLabel: '曝光點擊率', yLabel: '觀眾續看率' }
+            ];
+            const datasets = defs.map(d => {
+                const xs = seriesOf(rows, d.x), ys = seriesOf(rows, d.y);
+                const avgX = averageValue(xs), avgY = averageValue(ys);
+                const points = rows.map((r, i) => (xs[i] !== null && ys[i] !== null && avgX && avgY)
+                    ? { x: xs[i] / avgX * 100, y: ys[i] / avgY * 100, month: r['月份'], rawX: xs[i], rawY: ys[i] } : null).filter(Boolean);
+                return { label: d.name, def: d, data: points, backgroundColor: PLATFORM_COLORS[d.name], pointRadius: 6, pointHoverRadius: 8 };
+            }).filter(ds => ds.data.length);
+            const all = datasets.flatMap(ds => ds.data);
+            const span = axis => {
+                // 以 100 為中心對稱，範圍取 10 的倍數讓刻度整齊
+                const far = Math.ceil(Math.max(30, ...all.map(p => Math.abs(p[axis] - 100))) * 1.15 / 10) * 10;
+                return { min: 100 - far, max: 100 + far };
+            };
+            makeChart('quadrantChart', {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { ...span('x'), title: { display: true, text: '吸睛力指數（平均 = 100）' } },
+                        y: { ...span('y'), title: { display: true, text: '留存力指數（平均 = 100）' } }
+                    },
+                    plugins: { tooltip: { callbacks: { label: c => {
+                        const p = c.raw, d = c.dataset.def;
+                        return `${c.dataset.label} ${p.month}：${d.xLabel} ${p.rawX.toFixed(1)}%、${d.yLabel} ${p.rawY.toFixed(1)}%`;
+                    } } } }
+                },
+                plugins: [quadrantPlugin]
+            }, all.length > 0);
+        }
+
+        // 7. 深度互動組成：長條為互動次數 (左軸)，折線為 Meta 互動率 (右軸)
+        function renderEngagementChart({ rows }) {
+            const series = [
+                ['Meta 珍藏', 'Meta_珍藏次數', '#6366F1'], ['Meta 分享', 'Meta_分享次數', '#EC4899'],
+                ['Threads 回覆', 'Threads_串文回覆', '#F59E0B'], ['Threads 轉發', 'Threads_轉發', '#14B8A6'], ['Threads 引用', 'Threads_引用', '#8B5CF6']
+            ];
+            const bars = series.map(([label, key, color]) => ({ label, data: seriesOf(rows, key), backgroundColor: color, stack: 'engagement', order: 2 }));
+            const rate = seriesOf(rows, 'Meta_互動率');
+            makeChart('engagementChart', {
+                type: 'bar',
+                data: { labels: rows.map(r => r['月份']), datasets: [
+                    ...bars,
+                    { type: 'line', label: 'Meta 互動率', data: rate, yAxisID: 'y1', borderColor: '#111827', backgroundColor: '#111827', borderWidth: 2, tension: 0.3, order: 1 }
+                ] },
+                options: baseOptions({
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, title: { display: true, text: '互動次數' }, ticks: { callback: v => fmt(v) } },
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '互動率 (%)' }, ticks: { callback: v => `${v}%` } }
+                    },
+                    plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}：${c.raw === null ? '未填' : c.dataset.yAxisID === 'y1' ? c.raw.toFixed(2) + '%' : fmt(c.raw)}` } } }
+                })
+            }, [...bars.flatMap(b => b.data), ...rate].some(v => v !== null));
+        }
+
+        // 8. 流量平台佔比：各平台佔當月總流量的百分比
+        function renderShareChart({ rows }) {
+            const series = [['Meta 觸及', 'Meta_觸及人數', PLATFORM_COLORS.Meta], ['TikTok 觸及', 'TikTok_觸及人數', PLATFORM_COLORS.TikTok], ['YouTube 觀看', 'YT_觀看次數', PLATFORM_COLORS.YouTube]];
+            const raw = series.map(([, key]) => seriesOf(rows, key));
+            const totals = rows.map((r, i) => raw.reduce((sum, s) => sum + (s[i] || 0), 0));
+            const datasets = series.map(([label, , color], k) => ({
+                label, backgroundColor: color, raw: raw[k], stack: 'share',
+                data: rows.map((r, i) => (raw[k][i] === null || !totals[i]) ? null : raw[k][i] / totals[i] * 100)
+            }));
+            makeChart('shareChart', {
+                type: 'bar',
+                data: { labels: rows.map(r => r['月份']), datasets },
+                options: baseOptions({
+                    scales: { x: { stacked: true }, y: { stacked: true, max: 100, ticks: { callback: v => `${v}%` } } },
+                    plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}：${c.raw === null ? '未填' : `${c.raw.toFixed(1)}%（${fmt(c.dataset.raw[c.dataIndex])}）`}` } } }
+                })
+            }, totals.some(t => t > 0));
         }
 
         // ===== AI 報告 =====
@@ -2105,10 +2562,12 @@ ${DATA_UNIT_NOTE}
         let settingsTab = 'kpi';
         let settingsScope = ''; // '' = 全部品牌共用，否則為品牌名稱
 
-        function openSettings() {
+        function openSettings(tab) {
+            if (tab) settingsTab = tab;
             settingsDraft = {
                 kpi: clone(settings.kpi),
                 prompts: { ...settings.prompts },
+                display: { ...(settings.display || {}) },
                 overrides: Object.fromEntries(Object.entries(brandStore).map(([n, b]) => [n, clone(b.kpiOverrides || {})]))
             };
             settingsScope = '';
@@ -2129,6 +2588,7 @@ ${DATA_UNIT_NOTE}
             document.querySelectorAll('[data-settings-tab]').forEach(b => { b.className = tabClass(b.dataset.settingsTab === settingsTab); });
             document.getElementById('settingsKpiPane').classList.toggle('hidden', settingsTab !== 'kpi');
             document.getElementById('settingsPromptPane').classList.toggle('hidden', settingsTab !== 'prompts');
+            document.getElementById('settingsDisplayPane').classList.toggle('hidden', settingsTab !== 'display');
 
             const scopeSelect = document.getElementById('settingsScope');
             scopeSelect.innerHTML = '<option value="">全部品牌（共用）</option>' + Object.keys(brandStore).map(n =>
@@ -2138,11 +2598,41 @@ ${DATA_UNIT_NOTE}
                 ? '只有改過的格子會覆寫共用標準（以藍字標示），其他沿用共用值。品牌自訂標準也會一起存進這個品牌的 JSON 檔。'
                 : '所有品牌共用的標準。數值介於「良好」與「待加強」門檻之間為「普通」。「與品牌平均比」的門檻是差距百分比，「佔客單價比例」的門檻是佔客單價的百分比。';
             document.querySelector('#settingsResetBtn span').textContent =
-                settingsTab === 'kpi' && settingsScope ? '清除此品牌的自訂標準' : '恢復預設值';
+                settingsTab === 'kpi' && settingsScope ? '清除此品牌的自訂標準'
+                : settingsTab === 'display' ? '恢復建議設定' : '恢復預設值';
 
             document.getElementById('promptMonthly').value = settingsDraft.prompts.monthly;
             document.getElementById('promptOverall').value = settingsDraft.prompts.overall;
             renderKpiTable();
+            renderDisplayPane();
+        }
+
+        // 顯示項目：勾選要在儀表板出現的卡片、圖表與區塊
+        function renderDisplayPane() {
+            document.getElementById('displayList').innerHTML = DISPLAY_GROUPS.map((g, gi) => `<div class="mb-4">
+                <div class="flex items-center justify-between mb-1 border-b border-gray-100 pb-1">
+                    <h4 class="text-xs font-bold text-gray-900">${esc(g.title)}</h4>
+                    <span class="text-[11px] text-gray-400"><button onclick="setDisplayGroup(${gi}, true)" class="underline hover:text-gray-700">全開</button> · <button onclick="setDisplayGroup(${gi}, false)" class="underline hover:text-gray-700">全關</button></span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">${g.items.map(i => `<label class="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer">
+                    <input type="checkbox" data-display-id="${i.id}" ${isShown(i.id, settingsDraft.display) ? 'checked' : ''} class="rounded">
+                    <span>${esc(i.label)}</span>${i.rec ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 font-medium whitespace-nowrap">建議必開</span>' : ''}
+                </label>`).join('')}</div></div>`).join('');
+        }
+
+        // 只記錄與預設不同的開關
+        function setDisplay(id, on) {
+            if (on === DISPLAY_DEFAULTS[id]) delete settingsDraft.display[id];
+            else settingsDraft.display[id] = on;
+        }
+
+        function setDisplayGroup(index, on) {
+            DISPLAY_GROUPS[index].items.forEach(i => setDisplay(i.id, on));
+            renderDisplayPane();
+        }
+
+        function handleDisplayChange(e) {
+            if (e.target.dataset.displayId) setDisplay(e.target.dataset.displayId, e.target.checked);
         }
 
         function renderKpiTable() {
@@ -2217,25 +2707,26 @@ ${DATA_UNIT_NOTE}
 
         function resetSettingsDefaults() {
             if (settingsTab === 'prompts') settingsDraft.prompts = { ...DEFAULT_PROMPTS };
+            else if (settingsTab === 'display') settingsDraft.display = {};
             else if (settingsScope) settingsDraft.overrides[settingsScope] = {};
             else settingsDraft.kpi = clone(DEFAULT_KPI);
             renderSettings();
         }
 
         function saveSettings() {
-            settings = { kpi: settingsDraft.kpi, prompts: settingsDraft.prompts };
+            settings = { kpi: settingsDraft.kpi, prompts: settingsDraft.prompts, display: settingsDraft.display };
             Object.entries(settingsDraft.overrides).forEach(([name, overrides]) => {
                 if (brandStore[name]) brandStore[name].kpiOverrides = overrides;
             });
             persistSettings();
             persistBrands();
             closeSettings();
-            renderDetailSection();
+            refreshDisplay();
             showToast('設定已儲存');
         }
 
         function exportSettings() {
-            const content = JSON.stringify({ format: 'nexus-settings', version: 1, kpi: settingsDraft.kpi, prompts: settingsDraft.prompts }, null, 2);
+            const content = JSON.stringify({ format: 'nexus-settings', version: 1, kpi: settingsDraft.kpi, prompts: settingsDraft.prompts, display: settingsDraft.display }, null, 2);
             downloadFile('戰情室設定.json', content, 'application/json');
         }
 
@@ -2249,6 +2740,7 @@ ${DATA_UNIT_NOTE}
                 const merged = mergeSettings(obj);
                 settingsDraft.kpi = merged.kpi;
                 settingsDraft.prompts = merged.prompts;
+                settingsDraft.display = merged.display;
                 renderSettings();
                 showToast(`已載入 ${file.name}，按「儲存」後套用`);
             } catch (e) {
